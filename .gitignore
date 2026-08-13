@@ -1,0 +1,6 @@
+# Teszt/segéd fájlok — ne kerüljenek a publikus oldalra
+temp.html
+temp_lap.html
+.claude/
+.DS_Store
+Thumbs.db

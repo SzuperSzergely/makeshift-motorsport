@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MakeShiftBrothers Motorsport - Beosztás és Élő Követés</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Orbitron:wght@400;700;900&family=Roboto+Mono:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+    <!-- FontAwesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Style -->
+    <link rel="stylesheet" href="style.css?v=20260819">
+</head>
+<body>
+    <div class="decor-light decor-light-1"></div>
+    <div class="decor-light decor-light-2"></div>
+
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="brand-container">
+                <div class="logo-wrapper">
+                    <span class="logo-ms">MAKESHIFT BROTHERS</span>
+                    <span class="logo-ms-accent">MOTORSPORT</span>
+                </div>
+                <div class="live-indicator-wrapper">
+                    <span class="status-dot pulsing" id="statusDot"></span>
+                    <span id="liveIndicatorText">ÉLŐ KÖVETÉS</span>
+                </div>
+            </div>
+            
+            <div class="clock-container" style="display: flex; align-items: center; gap: 16px;">
+                <button type="button" id="themeToggleBtn" class="theme-toggle-btn" title="Világos / Sötét mód váltása">
+                    <i class="fa-solid fa-sun" style="font-size: 1.1rem; color: #ffb300;"></i>
+                </button>
+                <div style="text-align: right;">
+                    <div class="clock-time" id="clockTime">17:52:14</div>
+                    <div class="clock-date" id="clockDate">2026. JÚLIUS 3.</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- WARNING BANNERS (floating overlay — do not push page content) -->
+        <div class="warning-stack" id="warningStack">
+        <!-- WARNING BANNER FOR UPCOMING SWAP -->
+        <div class="warning-banner hidden" id="warningBanner">
+            <div class="warning-content">
+                <div class="warning-icon-wrapper">
+                    <i class="fa-solid fa-triangle-exclamation warning-icon-anim"></i>
+                </div>
+                <div class="warning-text-wrapper">
+                    <span class="warning-title">FIGYELMEZTETÉS</span>
+                    <span class="warning-message" id="warningMessageBanner">Zsemle következik 15 percen belül! Kezdjen el készülni!</span>
+                </div>
+            </div>
+            <button class="warning-close-btn" id="warningCloseBtn" title="Figyelmeztetés elrejtése">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+
+        <!-- REFUELING BANNER -->
+        <div class="warning-banner hidden" id="refuelBanner" style="background: linear-gradient(135deg, rgba(255, 23, 68, 0.08) 0%, rgba(255, 23, 68, 0.04) 100%); border-color: var(--color-danger); box-shadow: 0 4px 15px rgba(255, 23, 68, 0.08);">
+            <div class="warning-content">
+                <div class="warning-icon-wrapper" style="color: var(--color-danger);">
+                    <i class="fa-solid fa-gas-pump warning-icon-anim"></i>
+                </div>
+                <div class="warning-text-wrapper">
+                    <span class="warning-title" style="color: var(--color-danger);">⛽ TANKOLÁS</span>
+                    <span class="warning-message" id="refuelMessageBanner" style="color: var(--color-danger);">A következő cseréhez tankolás is szükséges!</span>
+                </div>
+            </div>
+            <button class="warning-close-btn" id="refuelCloseBtn" title="Tankolás figyelmeztetés elrejtése">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        </div><!-- /warning-stack -->
+
+        <!-- WARNING MODAL FOR UPCOMING SWAP -->
+        <div class="warning-modal-backdrop hidden" id="warningModal">
+            <div class="warning-modal">
+                <div class="warning-modal-icon">
+                    <i class="fa-solid fa-triangle-exclamation warning-icon-anim"></i>
+                </div>
+                <h2 class="warning-modal-title">PILÓTACSERE RIASZTÁS</h2>
+                <p class="warning-modal-message" id="warningMessageModal">Zsemle következik 15 percen belül! Kezdjen el készülni!</p>
+                <button class="warning-modal-btn" id="warningOkBtn">OK, KÉSZÜLÖK!</button>
+            </div>
+        </div>
+
+        <!-- REFUELING MODAL -->
+        <div class="warning-modal-backdrop hidden" id="refuelModal">
+            <div class="warning-modal" style="border-top: 4px solid var(--color-danger);">
+                <div class="warning-modal-icon" style="background: rgba(255, 23, 68, 0.15); color: var(--color-danger);">
+                    <i class="fa-solid fa-gas-pump"></i>
+                </div>
+                <h2 class="warning-modal-title" style="color: var(--color-danger);">⛽ TANKOLÁS SZÜKSÉGES!</h2>
+                <p class="warning-modal-message" id="refuelMessageModal">A következő pilótacseréhez tankolás is szükséges! Készítsétek elő az üzemanyagot!</p>
+                <button class="warning-modal-btn" id="refuelOkBtn" style="background: var(--color-danger);">ÉRTETTEM!</button>
+            </div>
+        </div>
+
+        <!-- Early Swap Modal -->
+        <div class="warning-modal-backdrop hidden" id="swapModal">
+            <div class="warning-modal" style="border-top: 4px solid var(--color-purple);">
+                <div class="warning-modal-icon" style="background: var(--color-purple-glow); color: var(--color-purple);">
+                    <i class="fa-solid fa-right-left"></i>
+                </div>
+                <h2 class="warning-modal-title" style="color: var(--color-purple);">SORON KÍVÜLI CSERE</h2>
+                <p class="warning-modal-message">Kire cseréljük a jelenlegi versenyzőt? A csere a MOSTANI időpontban rögzül.</p>
+                
+                <div class="select-wrapper" style="margin-bottom: 20px; text-align: left;">
+                    <select id="earlySwapSelect" style="width: 100%; padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 6px;">
+                        <option value="Lackó">Lackó</option>
+                        <option value="Zsemle">Zsemle</option>
+                        <option value="Boldi">Boldi</option>
+                        <option value="Beni">Beni</option>
+                    </select>
+                </div>
+                
+                <p class="warning-message" style="margin-bottom: 20px; font-weight: bold; color: var(--color-danger);">Rögzítjük a cserét a mostani időpontban?</p>
+                
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button class="warning-modal-btn" id="swapYesBtn" style="background: var(--color-green); color: #000; flex: 1;">Igen</button>
+                    <button class="warning-modal-btn" id="swapNoBtn" style="background: rgba(255, 255, 255, 0.1); color: var(--text-primary); flex: 1;">Mégse</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- DASHBOARD HERO / ACTIVE RUNNING TRACKER -->
+        <section class="dashboard-hero">
+            <!-- COUNTDOWN HERO (Visible before July 4th 15:00) -->
+            <div class="countdown-hero hidden" id="countdownHero">
+                <div class="countdown-card">
+                    <div class="countdown-tag" id="countdownEventTag">KÖVETKEZŐ ESEMÉNY: IDŐMÉRŐ EDZÉS</div>
+                    <h1 class="countdown-event-title" id="countdownEventTitle">IDŐMÉRŐ EDZÉS KEZDETE</h1>
+                    <div class="countdown-timer">
+                        <div class="timer-unit">
+                            <span class="timer-value" id="countDays">00</span>
+                            <span class="timer-label">NAP</span>
+                        </div>
+                        <div class="timer-divider">:</div>
+                        <div class="timer-unit">
+                            <span class="timer-value" id="countHours">00</span>
+                            <span class="timer-label">ÓRA</span>
+                        </div>
+                        <div class="timer-divider">:</div>
+                        <div class="timer-unit">
+                            <span class="timer-value" id="countMinutes">00</span>
+                            <span class="timer-label">PERC</span>
+                        </div>
+                        <div class="timer-divider">:</div>
+                        <div class="timer-unit">
+                            <span class="timer-value" id="countSeconds">00</span>
+                            <span class="timer-label">MP</span>
+                        </div>
+                    </div>
+                    <p class="countdown-target-desc" id="countdownTargetDesc">A visszaszámlálás a holnap déli időmérő kezdetét mutatja (12:00).</p>
+                </div>
+            </div>
+
+            <div class="hero-grid" id="heroGrid">
+                <!-- Current Driver Info -->
+                <div class="hero-card active-driver-card">
+                    <div class="card-tag">AKTÍV VERSENYZŐ</div>
+                    <div class="driver-profile">
+                        <div class="driver-avatar-ring">
+                            <i class="fa-solid fa-helmet-safety helmet-icon"></i>
+                        </div>
+                        <div class="driver-details">
+                            <h2 id="activeDriverName">Lackó</h2>
+                            <span class="driver-stage" id="activeDriverStage">Etap 1 / 3</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Session Progress -->
+                <div class="hero-card session-progress-card">
+                    <div class="card-tag">ETAP ÁLLAPOT</div>
+                    <div class="progress-details">
+                        <div class="time-countdown" id="timeRemaining">--:-- hátra</div>
+                        <div id="totalRaceRemaining" style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600;">Versenyből hátra: --:--</div>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+                        </div>
+                        <div class="progress-timestamps">
+                            <span id="activeStageStart" class="schedule-time-display">15:00</span>
+                            <span id="activeStageEnd" class="schedule-time-display">15:40</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Team Standing Card -->
+                <div class="hero-card condition-card">
+                    <div class="card-tag" id="teamStandingTag">CSAPATUNK ÁLLÁSA</div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                        <div class="condition-value" id="currentSectionValue" style="color: #2ecc71;">
+                            <i class="fa-solid fa-trophy" style="color: var(--color-gold);"></i>
+                            <span>--. Hely</span>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 0.75rem; color: var(--text-secondary); text-transform: uppercase; font-weight: 800; letter-spacing: 1px; margin-bottom: 2px;">Körhelyezés</div>
+                            <div id="currentLapRankValue" style="font-size: 1.4rem; font-weight: 700; font-family: var(--font-mono); color: var(--color-purple);">--.</div>
+                        </div>
+                    </div>
+                    <div class="condition-desc" id="conditionDescText" style="margin-top: 8px;">Kör: <strong>--</strong> | Legjobb: --:--.---</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- MAIN LAYOUT -->
+        <main class="main-layout">
+            <!-- LEFT COLUMN: SCHEDULE & DRIVER STATS -->
+            <section class="schedule-section">
+                <div class="tabs-header">
+                    <button class="tab-btn active" id="tabScheduleBtn"><i class="fa-solid fa-calendar-days icon-spacing"></i> Időbeosztás</button>
+                    <button class="tab-btn" id="tabTeamBtn"><i class="fa-solid fa-users-gear icon-spacing"></i> Pilóta Statisztikák</button>
+                    <button class="tab-btn" id="tabLapRankBtn"><i class="fa-solid fa-stopwatch icon-spacing"></i> Körhelyezés</button>
+                    <button class="tab-btn" id="tabChartsBtn"><i class="fa-solid fa-chart-area icon-spacing"></i> Grafikon</button>
+                    <button class="tab-btn" id="tabPlannerBtn"><i class="fa-solid fa-pen-ruler icon-spacing"></i> Tervező</button>
+                </div>
+                
+                <!-- Tab 1: Beosztás -->
+                <div class="tab-content" id="tabScheduleContent">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-list-check icon-spacing"></i> Verseny Időbeosztás</h2>
+                        <span class="badge" id="scheduleCount">12 Futam</span>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="schedule-table">
+                            <thead>
+                                <tr>
+                                    <th>Idősáv</th>
+                                    <th>Versenyző</th>
+                                    <th>Állapot</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scheduleTableBody">
+                                <!-- Rows will be injected by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Tab 2: Pilóta Statisztikák -->
+                <div class="tab-content hidden" id="tabTeamContent">
+                    <div class="section-header" style="flex-wrap: wrap; gap: 8px;">
+                        <h2><i class="fa-solid fa-chart-line icon-spacing"></i> Pilóták Egyéni Telemetriája</h2>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <span class="badge badge-purple" id="telemetryTeamBadge">Csapat: MakeShiftBrothers</span>
+                            <button id="downloadDbBtn" class="timing-btn-toggle" style="margin: 0; padding: 6px 12px; font-size: 0.7rem; box-shadow: none; background: rgba(0, 229, 255, 0.05); border: 1px solid var(--color-cyan);" title="Adatbázis letöltése a számítógépre"><i class="fa-solid fa-download"></i> Mentés Fájlba</button>
+                            <button id="clearDbBtn" class="timing-btn-toggle" style="margin: 0; padding: 6px 12px; font-size: 0.7rem; box-shadow: none; background: rgba(255, 71, 87, 0.05); border: 1px solid #ff4757;" title="Tárolt tesztadatok törlése az adatbázisból"><i class="fa-solid fa-trash"></i> Törlés</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Sub-tabs for Qualifying vs. Race -->
+                    <div class="stats-sub-tabs">
+                        <button type="button" class="sub-tab-btn" id="subTabQualy"><i class="fa-solid fa-gauge-high"></i> Időmérő / Teszt</button>
+                        <button type="button" class="sub-tab-btn active" id="subTabRace"><i class="fa-solid fa-flag-checkered"></i> Versenyfutam</button>
+                    </div>
+                    
+                    <div class="driver-telemetry-grid" id="driverTelemetryGrid">
+                        <div class="telemetry-loading" style="grid-column: 1 / -1; margin: 40px auto;">
+                            <i class="fa-solid fa-spinner fa-spin"></i> Statisztikák betöltése folyamatban...
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 3: Körhelyezés (Pace) -->
+                <div class="tab-content hidden" id="tabLapRankContent">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-stopwatch icon-spacing"></i> Aktuális Körhelyezés (Pace)</h2>
+                        <span class="badge badge-purple">Élő</span>
+                    </div>
+
+                    <div class="table-container">
+                        <table class="schedule-table telemetry-mini-table">
+                            <thead>
+                                <tr>
+                                    <th class="telemetry-pos-col">#</th>
+                                    <th class="telemetry-num-col">Rsz</th>
+                                    <th style="min-width: 120px;">Csapat</th>
+                                    <th style="text-align: right;">Köridő</th>
+                                    <th style="text-align: right;">Különbség</th>
+                                </tr>
+                            </thead>
+                            <tbody id="lapRankTableBody">
+                                <tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Adatok betöltése...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tab 4: Grafikon (Charts) -->
+                <div class="tab-content hidden" id="tabChartsContent">
+                    <div class="section-header">
+                        <h2><i class="fa-solid fa-chart-area icon-spacing"></i> Verseny Grafikonok</h2>
+                    </div>
+
+                    <!-- 1. Grafikon: Pozíció Idővonal -->
+                    <div class="hero-card" style="margin-bottom: 20px;">
+                        <div class="card-tag">CSAPAT HELYEZÉS (IDŐVONAL)</div>
+                        <div style="height: 300px; width: 100%; position: relative;">
+                            <canvas id="positionChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- 2. Grafikon: Pilóták Köridői -->
+                    <div class="hero-card">
+                        <div class="card-tag">PILÓTÁK KÖRIDEJE</div>
+                        <div style="height: 350px; width: 100%; position: relative;">
+                            <canvas id="lapTimesChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab 5: Tervező (Planner) -->
+                <div class="tab-content hidden" id="tabPlannerContent">
+                    <div class="section-header" style="flex-wrap: wrap; gap: 8px;">
+                        <h2><i class="fa-solid fa-pen-ruler icon-spacing"></i> Verseny Tervező</h2>
+                        <span class="badge badge-purple">Menthető terv</span>
+                    </div>
+
+                    <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">
+                        Itt állítható be a tervezett beosztás: az esemény időpontjai, valamint a pilóták
+                        felállásának sorrendje és időbeosztása. A mentés a böngészőbe történik, és a "Csere most"
+                        rendszer ezt a tervet használja alapként.
+                    </p>
+
+                    <!-- Esemény időpontok -->
+                    <div class="hero-card" style="margin-bottom: 18px;">
+                        <div class="card-tag">ESEMÉNY IDŐPONTOK</div>
+                        <div class="planner-times-grid">
+                            <label class="planner-field">
+                                <span>Verseny napja</span>
+                                <input type="date" id="planDate">
+                            </label>
+                            <label class="planner-field">
+                                <span>Időmérő kezdete</span>
+                                <input type="time" id="planQualyStart">
+                            </label>
+                            <label class="planner-field">
+                                <span>Verseny kezdete</span>
+                                <input type="time" id="planRaceStart">
+                            </label>
+                            <label class="planner-field">
+                                <span>Verseny vége (idő)</span>
+                                <input type="time" id="planRaceEnd">
+                            </label>
+                            <label class="planner-field">
+                                <span>Verseny vége (nap)</span>
+                                <input type="date" id="planRaceEndDate">
+                            </label>
+                            <label class="planner-field">
+                                <span><i class="fa-solid fa-moon" style="color: var(--color-purple);"></i> Esti szakasz kezdete</span>
+                                <input type="time" id="planEveningStart">
+                            </label>
+                            <label class="planner-field">
+                                <span><i class="fa-solid fa-sun" style="color: var(--color-gold);"></i> Esti szakasz vége</span>
+                                <input type="time" id="planEveningEnd">
+                            </label>
+                        </div>
+                        <p id="plannerDurationNote" style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 10px;"></p>
+                    </div>
+
+                    <!-- Automatikus beosztás-generátor -->
+                    <div class="hero-card" style="margin-bottom: 18px; border-left: 3px solid var(--color-cyan);">
+                        <div class="card-tag" style="color: var(--color-cyan);">AUTOMATIKUS BEOSZTÁS</div>
+                        <p style="font-size: 0.82rem; color: var(--text-secondary); margin: 8px 0 12px;">
+                            Add meg egy etap hosszát és a pilóták sorrendjét — az etapok számát a rendszer
+                            a verseny hosszából (fent beállított kezdés–vég) automatikusan kiszámolja, és kiosztja
+                            a teljes beosztást a rajtidőtől kezdve. Utána bármelyik sort finomhangolhatod.
+                        </p>
+                        <div class="planner-times-grid">
+                            <label class="planner-field">
+                                <span>Egy etap hossza (perc)</span>
+                                <input type="number" id="genStintLen" min="1" max="720" value="60">
+                            </label>
+                            <label class="planner-field" style="grid-column: span 3; min-width: 220px;">
+                                <span>Pilóta sorrend (vesszővel)</span>
+                                <input type="text" id="genOrder" placeholder="Lackó, Boldi, Zsemle, Beni" value="Lackó, Boldi, Zsemle, Beni">
+                            </label>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; align-items: center;">
+                            <button id="genApplyBtn" class="warning-modal-btn" style="background: var(--color-cyan); color: #000; flex: 0 0 auto; min-width: 190px; padding: 10px 16px;"><i class="fa-solid fa-wand-magic-sparkles"></i> Beosztás generálása</button>
+                            <span id="genNote" style="font-size: 0.78rem; color: var(--text-secondary);"></span>
+                        </div>
+                    </div>
+
+                    <!-- Beosztás szerkesztő -->
+                    <div class="hero-card">
+                        <div class="card-tag">PILÓTA BEOSZTÁS (SORREND ÉS IDŐK)</div>
+                        <div class="table-container" style="margin-top: 10px;">
+                            <table class="schedule-table planner-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">#</th>
+                                        <th>Versenyző</th>
+                                        <th>Kezdés</th>
+                                        <th>Vége</th>
+                                        <th style="text-align: right;">Hossz</th>
+                                        <th style="width: 120px; text-align: right;">Műveletek</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="plannerTableBody">
+                                    <!-- JS tölti fel -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; align-items: center;">
+                            <button id="plannerAddBtn" class="timing-btn-toggle" style="margin: 0; flex: 0 0 auto; padding: 9px 14px;"><i class="fa-solid fa-plus"></i> Új etap</button>
+                            <span id="plannerSummary" style="font-size: 0.78rem; color: var(--text-secondary); margin-left: auto;"></span>
+                        </div>
+
+                        <div id="plannerWarning" style="display: none; margin-top: 12px; font-size: 0.8rem; color: var(--color-gold); font-weight: 600;"></div>
+
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 18px;">
+                            <button id="plannerSaveBtn" class="warning-modal-btn" style="background: var(--color-green); color: #000; flex: 1; min-width: 140px;"><i class="fa-solid fa-floppy-disk"></i> Terv mentése</button>
+                            <button id="plannerResetBtn" class="warning-modal-btn" style="background: rgba(255,255,255,0.08); color: var(--text-primary); border: 1px solid var(--border-color); flex: 0 0 auto; min-width: 140px;"><i class="fa-solid fa-rotate-left"></i> Alaphelyzet</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- RIGHT COLUMN: CONTROLS & STATS -->
+            <aside class="sidebar-section">
+                <!-- CHRONOMOTO LIVE TIMING CARD -->
+                <div class="sidebar-card live-timing-card">
+                    <div class="sidebar-card-header">
+                        <h3><i class="fa-solid fa-stopwatch icon-spacing"></i> Chronomoto Élő Telemetria</h3>
+                        <span class="live-pulse-dot" id="telemetryPulseDot" title="Adatok frissítése folyamatban"></span>
+                    </div>
+                    <div class="live-timing-body">
+                        <p class="live-timing-desc">Valós idejű köridők a Visonta pályáról:</p>
+                        
+                        <div class="telemetry-table-wrapper" id="telemetryTableWrapper">
+                            <div class="telemetry-loading">
+                                <i class="fa-solid fa-spinner fa-spin"></i> Kapcsolódás a Chronomoto-hoz...
+                            </div>
+                        </div>
+
+                        <div class="live-timing-actions">
+                            <a href="https://live.chronomoto.com/bssw/index.php" target="_blank" class="timing-btn-link"><i class="fa-solid fa-arrow-up-right-from-square"></i> Hivatalos oldal</a>
+                            <button id="toggleIframeBtn" class="timing-btn-toggle"><i class="fa-solid fa-window-restore"></i> Beágyazás</button>
+                        </div>
+                        <div class="iframe-wrapper hidden" id="iframeWrapper">
+                            <iframe src="https://live.chronomoto.com/bssw/index.php" id="chronomotoIframe" title="Chronomoto Live Timing"></iframe>
+                        </div>
+                    </div>
+                </div>
+
+
+
+                <!-- CONTROLS PANEL -->
+                <div class="sidebar-card controls-card">
+                    <div class="sidebar-card-header">
+                        <h3><i class="fa-solid fa-sliders icon-spacing"></i> Vezérlőpult</h3>
+                    </div>
+                    <div class="controls-body">
+                        <!-- Cloud Sync Status -->
+                        <div class="control-group">
+                            <label><i class="fa-solid fa-cloud icon-spacing"></i> Eszközök közti szinkron</label>
+                            <div id="syncStatus" style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">Szinkron: nincs beállítva (helyi mód)</div>
+                            <div style="display: grid; grid-template-columns: 1fr auto; gap: 8px;">
+                                <input type="text" id="syncRoomInput" placeholder="szoba kód (pl. makeshift)" style="width: 100%; background: rgba(0,0,0,0.25); border: 1px solid var(--border-color); color: #ffffff; padding: 9px 10px; border-radius: var(--border-radius-md); font-size: 0.8rem; outline: none;">
+                                <button type="button" id="syncRoomBtn" class="timing-btn-toggle" style="margin: 0; padding: 9px 12px; box-shadow: none; font-size: 0.72rem;">Csatlakozás</button>
+                            </div>
+                        </div>
+
+                        <!-- Team Selection -->
+                        <div class="control-group">
+                            <label>Követett csapat (Kereszt-ellenőrzés)</label>
+                            <div style="display: grid; grid-template-columns: 80px 1fr; gap: 8px; margin-bottom: 8px;">
+                                <div>
+                                    <label for="teamNumberInput" style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">Rajtszám</label>
+                                    <input type="text" id="teamNumberInput" value="25" placeholder="Rsz" style="width: 100%; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-color); color: #ffffff; padding: 10px; border-radius: var(--border-radius-md); font-family: var(--font-sans); font-size: 0.85rem; font-weight: 700; text-align: center; outline: none; transition: var(--transition-fast);">
+                                </div>
+                                <div>
+                                    <label for="teamNameInput" style="font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 4px; display: block;">Csapatnév</label>
+                                    <input type="text" id="teamNameInput" value="MakeShiftBrothers" placeholder="Pl: Gokart 8" style="width: 100%; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-color); color: #ffffff; padding: 10px; border-radius: var(--border-radius-md); font-size: 0.85rem; font-weight: 700; outline: none; transition: var(--transition-fast);">
+                                </div>
+                            </div>
+                            <button type="button" id="updateTeamQueryBtn" class="timing-btn-toggle" style="width: 100%; padding: 10px; margin: 0; box-shadow: none; font-size: 0.72rem;"><i class="fa-solid fa-rotate"></i> Követés indítása</button>
+                        </div>
+
+                        <!-- Driver Filter -->
+                        <div class="control-group">
+                            <label for="driverFilter">Versenyző szűrése</label>
+                            <div class="select-wrapper">
+                                <select id="driverFilter">
+                                    <option value="all">Mindegyik versenyző</option>
+                                    <option value="Lackó">Lackó</option>
+                                    <option value="Zsemle">Zsemle</option>
+                                    <option value="Boldi">Boldi</option>
+                                    <option value="Beni">Beni</option>
+                                </select>
+                                <i class="fa-solid fa-chevron-down select-arrow"></i>
+                            </div>
+                        </div>
+
+                        <!-- Swap Buttons -->
+                        <div class="control-group">
+                            <button id="swapNextBtn" class="btn btn-primary" style="width: 100%; background: var(--color-purple); border: none; font-weight: bold; padding: 11px; border-radius: 6px; cursor: pointer; color: white;">
+                                <i class="fa-solid fa-forward-step"></i> Csere (a következő pilótára)
+                            </button>
+                            <button id="earlySwapBtn" class="btn btn-secondary" style="width: 100%; background: rgba(124, 77, 255, 0.12); border: 1px solid var(--color-purple); color: var(--color-purple); font-weight: bold; padding: 10px; border-radius: 6px; cursor: pointer; margin-top: 8px;">
+                                <i class="fa-solid fa-user-pen"></i> Soron kívüli csere
+                            </button>
+                            <button id="cancelSwapBtn" class="btn btn-secondary hidden" style="width: 100%; background: rgba(255, 255, 255, 0.1); border: 1px solid var(--border-color); color: var(--text-primary); font-weight: bold; padding: 10px; border-radius: 6px; cursor: pointer; margin-top: 8px;">
+                                <i class="fa-solid fa-rotate-left"></i> Utolsó csere visszavonása
+                            </button>
+                        </div>
+
+                        <!-- Simulation Toggle -->
+                        <div class="control-group">
+                            <div class="toggle-container">
+                                <span class="toggle-label">Idő Szimuláció</span>
+                                <label class="switch">
+                                    <input type="checkbox" id="simToggle">
+                                    <span class="slider round"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Simulation Slider -->
+                        <div class="control-group slider-group disabled" id="sliderGroup">
+                            <div class="slider-header">
+                                <label for="timeSimSlider">Szimulált időpont</label>
+                                <span id="simTimeDisplay">15:00</span>
+                            </div>
+                            <div class="slider-wrapper">
+                                <input type="range" id="timeSimSlider" min="870" max="1410" step="1" value="900">
+                                <span class="slider-ticks">
+                                    <span>14:30</span>
+                                    <span>19:00</span>
+                                    <span>23:30</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- DRIVER OVERALL STATS -->
+                <div class="sidebar-card stats-card">
+                    <div class="sidebar-card-header">
+                        <h3><i class="fa-solid fa-chart-simple icon-spacing"></i> Összesített statisztika</h3>
+                    </div>
+                    <div class="stats-body" id="statsContainer">
+                        <!-- Injected by JavaScript -->
+                    </div>
+                </div>
+            </aside>
+        </main>
+        
+        <!-- FOOTER -->
+        <footer class="app-footer">
+            <p>&copy; 2026 MakeShiftBrothers Motorsport. Minden jog fenntartva.</p>
+            <p class="footer-system-clock"><i class="fa-regular fa-clock"></i> Rendszeridő szerint frissül automatikusan.</p>
+        </footer>
+    </div>
+
+    <!-- FLOATING QUICK ACTIONS BAR -->
+    <div class="floating-action-bar">
+        <button id="btnQuickSwap" class="fab-btn fab-swap" data-tooltip="KORAI CSERE">
+            <i class="fa-solid fa-rotate"></i>
+        </button>
+        <button id="btnQuickRefuel" class="fab-btn fab-refuel" data-tooltip="TANKOLÁS">
+            <i class="fa-solid fa-gas-pump"></i>
+        </button>
+        <button id="btnQuickEngine" class="fab-btn fab-engine" data-tooltip="MOTORHIBA">
+            <i class="fa-solid fa-car-burst"></i>
+        </button>
+        <button id="btnQuickHuman" class="fab-btn fab-human" data-tooltip="EMBER HIBA">
+            <i class="fa-solid fa-person-falling"></i>
+        </button>
+    </div>
+
+    <!-- CUSTOM ALERT MODAL -->
+    <div class="warning-modal-backdrop hidden" id="customAlertModal">
+        <div class="warning-modal" id="customAlertBox" style="border-top: 4px solid var(--color-cyan);">
+            <div class="warning-modal-icon" id="customAlertIconBox" style="background: rgba(0, 229, 255, 0.15); color: var(--color-cyan);">
+                <i id="customAlertIcon" class="fa-solid fa-triangle-exclamation"></i>
+            </div>
+            <h2 class="warning-modal-title" id="customAlertTitle" style="color: var(--color-cyan);">FIGYELMEZTETÉS</h2>
+            <p class="warning-modal-message" id="customAlertMessage">Egyedi üzenet</p>
+            <button class="warning-modal-btn" id="customAlertOkBtn" style="background: var(--color-cyan); color: #000;">VETTEM!</button>
+        </div>
+    </div>
+
+    <!-- END RACE STATS MODAL -->
+    <div class="warning-modal-backdrop hidden" id="endRaceModal" style="z-index: 9999;">
+        <div class="warning-modal" style="border-top: 4px solid var(--color-gold); max-width: 600px; width: 90%;">
+            <div class="warning-modal-icon" style="background: rgba(255, 215, 0, 0.15); color: var(--color-gold);">
+                <i class="fa-solid fa-trophy"></i>
+            </div>
+            <h2 class="warning-modal-title" style="color: var(--color-gold);">VERSENY VÉGET ÉRT!</h2>
+            <p class="warning-modal-message">A 8 órás verseny lezárult. Íme a csapat pilótáinak teljesítménye:</p>
+            <div id="endRaceStatsContent" style="margin-top: 20px; text-align: left; font-size: 1rem; color: var(--text-primary);">
+                <!-- Tartalom JS-ből -->
+            </div>
+            <button class="warning-modal-btn" id="closeEndRaceBtn" style="background: var(--color-gold); color: #000; margin-top: 25px;">SZÉP VOLT FIÚK!</button>
+        </div>
+    </div>
+
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <!-- Firebase (felhő-szinkron; ha nincs config, helyi módban fut) -->
+        <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+        <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+        <script src="script.js?v=20260819"></script>
+    </body>
+</html>
