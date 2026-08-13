@@ -2591,11 +2591,13 @@ function drawCharts() {
 // ============================================================================
 
 const SYNC_CONFIG = {
-    apiKey: "",            // ← IDE jön a Firebase config (a setup után)
-    authDomain: "",
-    databaseURL: "",       // pl. https://xxx-default-rtdb.europe-west1.firebasedatabase.app
-    projectId: "",
-    appId: ""
+    apiKey: "AIzaSyDLCpnsgiidY1NLpTssPKH7pHg1QHp34QA",
+    authDomain: "makeshift-race.firebaseapp.com",
+    databaseURL: "https://makeshift-race-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "makeshift-race",
+    storageBucket: "makeshift-race.firebasestorage.app",
+    messagingSenderId: "564954782755",
+    appId: "1:564954782755:web:ab0be3a2aba9ee77686596"
 };
 let SYNC_ROOM = localStorage.getItem('sync_room') || 'makeshift'; // közös szoba-azonosító
 let syncRef = null;
