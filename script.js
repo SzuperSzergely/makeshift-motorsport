@@ -2631,6 +2631,7 @@ function syncInit() {
         if (!firebase.apps.length) firebase.initializeApp(SYNC_CONFIG);
         const db = firebase.database();
         syncRef = db.ref('rooms/' + SYNC_ROOM);
+        alertListenerInit = false; // az első alert-pillanatkép csak alapérték, nem mutatjuk
         updateSyncStatus('Szinkron: kapcsolódás…', 'var(--color-gold)');
 
         // Kapcsolat-állapot kijelzése
@@ -2671,6 +2672,20 @@ function syncInit() {
                 updateTelemetryUI();
                 if (activeTab === 'planner' && typeof openPlanner === 'function') openPlanner();
             }
+        });
+
+        // Riasztások (gyorsgombok popupjai) figyelése — MINDEN eszközön megjelennek.
+        // Betöltéskor a legutóbbi (régi) riasztást nem mutatjuk, csak az újakat.
+        syncRef.child('alert').on('value', snap => {
+            const a = snap.val();
+            if (!alertListenerInit) {
+                alertListenerInit = true;
+                if (a && a.ts) lastAlertTsSeen = a.ts;
+                return;
+            }
+            if (!a || !a.ts || a.ts <= lastAlertTsSeen) return;
+            lastAlertTsSeen = a.ts;
+            showCustomAlert(a.title, a.msg, a.colorVar, a.iconClass);
         });
     } catch (e) {
         console.error('Szinkron inicializálási hiba:', e);
@@ -2765,31 +2780,44 @@ if (customAlertOkBtn) {
     });
 }
 
+// Riasztás megjelenítése MINDEN csatlakozott eszközön (a szinkronon keresztül).
+// Ha nincs beállítva a szinkron, csak helyben jelenik meg.
+let lastAlertTsSeen = 0;
+let alertListenerInit = false;
+function broadcastAlert(title, msg, colorVar, iconClass) {
+    showCustomAlert(title, msg, colorVar, iconClass); // azonnal helyben
+    if (typeof syncRef !== 'undefined' && syncRef) {
+        const ts = Date.now();
+        lastAlertTsSeen = ts; // a saját figyelőnk ne mutassa újra
+        syncRef.child('alert').set({ title, msg, colorVar, iconClass, ts }).catch(() => {});
+    }
+}
+
 const btnQuickSwap = document.getElementById('btnQuickSwap');
 if (btnQuickSwap) {
     btnQuickSwap.addEventListener('click', () => {
-        showCustomAlert('KORAI CSERE', 'Soron kívüli pilótacsere szükséges! Valami történt a pályán.', '--color-cyan', 'fa-solid fa-rotate');
+        broadcastAlert('KORAI CSERE', 'Soron kívüli pilótacsere szükséges! Valami történt a pályán.', '--color-cyan', 'fa-solid fa-rotate');
     });
 }
 
 const btnQuickRefuel = document.getElementById('btnQuickRefuel');
 if (btnQuickRefuel) {
     btnQuickRefuel.addEventListener('click', () => {
-        showCustomAlert('TANKOLÁS', 'Azonnali tankolás szükséges!', '--color-green', 'fa-solid fa-gas-pump');
+        broadcastAlert('TANKOLÁS', 'Azonnali tankolás szükséges!', '--color-green', 'fa-solid fa-gas-pump');
     });
 }
 
 const btnQuickEngine = document.getElementById('btnQuickEngine');
 if (btnQuickEngine) {
     btnQuickEngine.addEventListener('click', () => {
-        showCustomAlert('MOTORHIBA', 'Műszaki hiba történt! Azonnal a bokszba kell jönni!', '--color-red', 'fa-solid fa-car-burst');
+        broadcastAlert('MOTORHIBA', 'Műszaki hiba történt! Azonnal a bokszba kell jönni!', '--color-red', 'fa-solid fa-car-burst');
     });
 }
 
 const btnQuickHuman = document.getElementById('btnQuickHuman');
 if (btnQuickHuman) {
     btnQuickHuman.addEventListener('click', () => {
-        showCustomAlert('EMBER HIBA', 'Vezetéstechnikai hiba vagy büntetés!', '--color-orange', 'fa-solid fa-person-falling');
+        broadcastAlert('EMBER HIBA', 'Vezetéstechnikai hiba vagy büntetés!', '--color-orange', 'fa-solid fa-person-falling');
     });
 }
 
