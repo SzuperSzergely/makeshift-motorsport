@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Style -->
-    <link rel="stylesheet" href="style.css?v=20260825">
+    <link rel="stylesheet" href="style.css?v=20260826">
 </head>
 <body>
     <div class="decor-light decor-light-1"></div>
@@ -486,6 +486,14 @@
                             <button type="button" id="updateTeamQueryBtn" class="timing-btn-toggle" style="width: 100%; padding: 10px; margin: 0; box-shadow: none; font-size: 0.72rem;"><i class="fa-solid fa-rotate"></i> Követés indítása</button>
                         </div>
 
+                        <!-- Saját telemetria-proxy (opcionális, pl. Cloudflare Worker) -->
+                        <div class="control-group">
+                            <label for="proxyUrlInput">Saját telemetria-proxy (opcionális)</label>
+                            <input type="text" id="proxyUrlInput" placeholder="https://...workers.dev/?url=" style="width: 100%; background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-color); color: #ffffff; padding: 9px 10px; border-radius: var(--border-radius-md); font-size: 0.75rem; outline: none; margin-bottom: 6px;">
+                            <button type="button" id="saveProxyBtn" class="timing-btn-toggle" style="width: 100%; padding: 9px; margin: 0; box-shadow: none; font-size: 0.72rem;"><i class="fa-solid fa-shield-halved"></i> Proxy mentése</button>
+                            <div id="proxyStatus" style="font-size: 0.68rem; color: var(--text-muted); margin-top: 6px;"></div>
+                        </div>
+
                         <!-- Driver Filter -->
                         <div class="control-group">
                             <label for="driverFilter">Versenyző szűrése</label>
@@ -622,6 +630,6 @@
         <!-- Firebase (felhő-szinkron; ha nincs config, helyi módban fut) -->
         <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-        <script src="script.js?v=20260825"></script>
+        <script src="script.js?v=20260826"></script>
     </body>
 </html>

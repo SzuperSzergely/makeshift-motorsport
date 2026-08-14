@@ -2280,6 +2280,31 @@ teamNameInputEl.addEventListener('keyup', (e) => {
     }
 });
 
+// --- SAJÁT TELEMETRIA-PROXY MEZŐ (opcionális, pl. Cloudflare Worker) ---
+(function initProxyField() {
+    const inp = document.getElementById('proxyUrlInput');
+    const btn = document.getElementById('saveProxyBtn');
+    const statusEl = document.getElementById('proxyStatus');
+    if (!inp || !btn) return;
+    const refresh = () => {
+        const v = localStorage.getItem('telemetry_proxy') || '';
+        if (statusEl) {
+            statusEl.textContent = v ? '✓ Saját proxy aktív (elsődleges lekérdezés)' : 'Nincs beállítva — nyilvános proxykat használ.';
+            statusEl.style.color = v ? 'var(--color-green)' : 'var(--text-muted)';
+        }
+    };
+    inp.value = localStorage.getItem('telemetry_proxy') || '';
+    refresh();
+    btn.addEventListener('click', () => {
+        const v = inp.value.trim();
+        if (v) localStorage.setItem('telemetry_proxy', v);
+        else localStorage.removeItem('telemetry_proxy');
+        refresh();
+        if (typeof showTelemetryLoadingState === 'function') showTelemetryLoadingState();
+        if (typeof updateTelemetryUI === 'function') updateTelemetryUI();
+    });
+})();
+
 // --- VILÁGOS / SÖTÉT MÓD KEZELÉSE ---
 const themeToggleBtnEl = document.getElementById('themeToggleBtn');
 
