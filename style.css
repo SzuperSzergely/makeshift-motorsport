@@ -310,7 +310,7 @@ body {
     width: 50px;
     height: 50px;
     border-radius: 50%;
-    background: rgba(124, 77, 255, 0.15);
+    background: var(--color-purple-glow);
     border: 2px solid var(--color-purple);
     display: flex;
     align-items: center;
@@ -327,7 +327,7 @@ body {
 
 .helmet-icon {
     font-size: 1.3rem;
-    color: #ffffff;
+    color: var(--text-primary);
 }
 
 .driver-details h2 {
