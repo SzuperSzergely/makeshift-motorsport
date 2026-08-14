@@ -464,8 +464,8 @@ function getNextSegment(nowMin) {
 // Szimulációban az addig automatikusan lezárult etapok határait is rögzíti (utolérés).
 function performSwap(overrideDriver) {
     const now = Math.round(getCurrentTimeMinutes());
-    if (now <= RACE_START_MIN || now >= RACE_END_MIN) {
-        showCustomAlert('CSERE', `Cserét csak a verseny ideje alatt (${plan.raceStart}–${fmtClock(RACE_END_MIN, true)}) lehet rögzíteni.`, '--color-gold', 'fa-solid fa-triangle-exclamation');
+    if (now < RACE_START_MIN || now >= RACE_END_MIN) {
+        showCustomAlert('CSERE', `Cserét csak a verseny ideje alatt (${plan.raceStart}–${plan.raceEnd}) lehet rögzíteni.`, '--color-gold', 'fa-solid fa-triangle-exclamation');
         return false;
     }
     const tl = getTimeline();

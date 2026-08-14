@@ -8,7 +8,13 @@
     --bg-card-hover: rgba(30, 30, 42, 0.8);
     --border-color: rgba(255, 255, 255, 0.08);
     --border-color-active: rgba(124, 77, 255, 0.4);
-    
+
+    /* Adaptív felület-tokenek (mindkét módban illő értékkel) */
+    --track-bg: rgba(255, 255, 255, 0.12);
+    --overlay-subtle: rgba(255, 255, 255, 0.05);
+    --overlay-soft: rgba(255, 255, 255, 0.10);
+    --surface-inset: rgba(0, 0, 0, 0.22);
+
     /* Neon Colors */
     --color-purple: #7c4dff;
     --color-purple-glow: rgba(124, 77, 255, 0.3);
@@ -783,10 +789,11 @@ input:checked + .slider.round:before {
 #timeSimSlider {
     width: 100%;
     height: 6px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--track-bg);
     border-radius: 3px;
     outline: none;
     appearance: none;
+    -webkit-appearance: none;
 }
 
 #timeSimSlider::-webkit-slider-thumb {
@@ -1774,7 +1781,13 @@ input:checked + .slider.round:before {
     --bg-card-hover: rgba(240, 243, 248, 0.98);
     --border-color: rgba(0, 0, 0, 0.08);
     --border-color-active: rgba(108, 92, 231, 0.4);
-    
+
+    /* Adaptív felület-tokenek — light módban sötét árnyalatokkal */
+    --track-bg: rgba(0, 0, 0, 0.16);
+    --overlay-subtle: rgba(0, 0, 0, 0.04);
+    --overlay-soft: rgba(0, 0, 0, 0.07);
+    --surface-inset: rgba(0, 0, 0, 0.04);
+
     /* High contrast solid colors for light mode */
     --color-purple: #6c5ce7;
     --color-purple-glow: rgba(108, 92, 231, 0.15);
