@@ -3199,30 +3199,30 @@ function showEndRaceStats() {
                 </div>
                 <div style="text-align: center; flex: 1;">
                     <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">A Futam MVP-je 👑</div>
-                    <div style="font-size: 2.2rem; font-weight: bold; color: #fff; margin-top: 5px;">${mvpDriver}</div>
+                    <div style="font-size: 2.2rem; font-weight: bold; color: var(--text-primary); margin-top: 5px;">${mvpDriver}</div>
                 </div>
             </div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-purple);">
+                <div style="background: var(--overlay-subtle); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-purple);">
                     <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Legjobb köridő</div>
                     <div style="font-size: 1.4rem; font-weight: bold; margin: 5px 0;">${bestLapDriver}</div>
                     <div style="color: var(--color-cyan); font-family: monospace; font-size: 1.1rem;">${formatTime(bestLapTime)}</div>
                 </div>
                 
-                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-gold);">
+                <div style="background: var(--overlay-subtle); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-gold);">
                     <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Legtöbb kör</div>
                     <div style="font-size: 1.4rem; font-weight: bold; margin: 5px 0;">${mostLapsDriver}</div>
                     <div style="color: var(--color-gold); font-size: 1.1rem;">${mostLaps} kör</div>
                 </div>
                 
-                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-green);">
+                <div style="background: var(--overlay-subtle); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-green);">
                     <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Legtöbb pozíciószerzés</div>
                     <div style="font-size: 1.4rem; font-weight: bold; margin: 5px 0;">${mostPosDriver}</div>
                     <div style="color: var(--color-green); font-size: 1.1rem;">+${mostPosGained} hely</div>
                 </div>
                 
-                <div style="background: rgba(255,255,255,0.05); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-pink);">
+                <div style="background: var(--overlay-subtle); padding: 15px; border-radius: 8px; border-left: 4px solid var(--color-pink);">
                     <div style="font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase;">Legjobb átlag (50s-3m)</div>
                     <div style="font-size: 1.4rem; font-weight: bold; margin: 5px 0;">${bestAvgDriver}</div>
                     <div style="color: var(--color-pink); font-family: monospace; font-size: 1.1rem;">${formatTime(bestAvgTime)}</div>

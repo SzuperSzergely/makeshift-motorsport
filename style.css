@@ -30,6 +30,11 @@
     --color-green-glow: rgba(0, 230, 118, 0.2);
     --color-gray: #90a4ae;
     --color-danger: #ff1744;
+    --color-red: #ff3b30;
+    --color-red-glow: rgba(255, 59, 48, 0.3);
+    --color-orange: #ff9800;
+    --color-orange-glow: rgba(255, 152, 0, 0.3);
+    --color-pink: #ff4081;
     
     /* Text Colors */
     --text-primary: #ffffff;
@@ -1819,6 +1824,11 @@ input:checked + .slider.round:before {
     --color-green-glow: rgba(39, 174, 96, 0.12);
     --color-gray: #7f8c8d;
     --color-danger: #d63031;
+    --color-red: #d81f2a;
+    --color-red-glow: rgba(216, 31, 42, 0.18);
+    --color-orange: #e67e22;
+    --color-orange-glow: rgba(230, 126, 34, 0.18);
+    --color-pink: #d81b60;
     
     /* Text Colors */
     --text-primary: #1e272e;
