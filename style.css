@@ -16,8 +16,10 @@
     --surface-inset: rgba(0, 0, 0, 0.22);
 
     /* Neon Colors */
-    --color-purple: #7c4dff;
-    --color-purple-glow: rgba(124, 77, 255, 0.3);
+    /* --color-purple = BRAND PIROS (MBM) — a fő kiemelőszín az egész UI-ban */
+    --color-purple: #f5232f;
+    --color-purple-glow: rgba(245, 35, 47, 0.32);
+    --color-lacko: #7c4dff;   /* Lackó pilóta-azonosító szín (marad lila) */
     --color-blue: #00b0ff;
     --color-blue-glow: rgba(0, 176, 255, 0.25);
     --color-cyan: #00e5ff;
@@ -140,8 +142,22 @@ body {
 
 .brand-container {
     display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+}
+
+.brand-text {
+    display: flex;
     flex-direction: column;
     gap: 6px;
+}
+
+.header-logo {
+    height: 58px;
+    width: auto;
+    flex: 0 0 auto;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
 }
 
 .logo-wrapper {
@@ -165,8 +181,8 @@ body {
     font-weight: 700;
     font-size: 1rem;
     letter-spacing: 4px;
-    color: var(--color-cyan);
-    text-shadow: 0 0 10px var(--color-cyan-glow);
+    color: var(--color-purple);
+    text-shadow: 0 0 10px var(--color-purple-glow);
 }
 
 .live-indicator-wrapper {
@@ -849,7 +865,7 @@ input:checked + .slider.round:before {
     border-radius: 2px;
 }
 
-.color-Lackó { background-color: var(--color-purple); }
+.color-Lackó { background-color: var(--color-lacko); }
 .color-Zsemle { background-color: var(--color-cyan); }
 .color-Boldi { background-color: var(--color-gold); }
 .color-Beni { background-color: var(--color-green); }
@@ -1260,26 +1276,26 @@ input:checked + .slider.round:before {
 }
 
 .timing-btn-link {
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--overlay-subtle);
     border: 1px solid var(--border-color);
-    color: #ffffff;
+    color: var(--text-primary);
 }
 
 .timing-btn-link:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--overlay-soft);
+    border-color: var(--border-color-active);
 }
 
 .timing-btn-toggle {
-    background: rgba(0, 229, 255, 0.1);
-    border: 1px solid var(--color-cyan);
-    color: var(--color-cyan);
-    box-shadow: 0 0 8px var(--color-cyan-glow);
+    background: var(--overlay-subtle);
+    border: 1px solid var(--color-purple);
+    color: var(--color-purple);
+    box-shadow: 0 0 8px var(--color-purple-glow);
 }
 
 .timing-btn-toggle:hover {
-    background: rgba(0, 229, 255, 0.18);
-    box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+    background: var(--overlay-soft);
+    box-shadow: 0 0 15px var(--color-purple-glow);
 }
 
 .iframe-wrapper {
@@ -1440,15 +1456,15 @@ input:checked + .slider.round:before {
 }
 
 .tab-btn:hover {
-    color: #ffffff;
-    background: rgba(255, 255, 255, 0.03);
+    color: var(--text-primary);
+    background: var(--overlay-subtle);
 }
 
 .tab-btn.active {
-    color: var(--color-cyan);
-    background: rgba(0, 229, 255, 0.05);
-    border: 1px solid rgba(0, 229, 255, 0.2);
-    box-shadow: 0 0 10px rgba(0, 229, 255, 0.08);
+    color: var(--color-purple);
+    background: var(--overlay-subtle);
+    border: 1px solid var(--color-purple-glow);
+    box-shadow: 0 0 10px var(--color-purple-glow);
 }
 
 .tab-content {
@@ -1496,7 +1512,7 @@ input:checked + .slider.round:before {
     width: 4px;
 }
 
-.driver-telemetry-card.color-Lackó::before { background: var(--color-purple); }
+.driver-telemetry-card.color-Lackó::before { background: var(--color-lacko); }
 .driver-telemetry-card.color-Zsemle::before { background: var(--color-blue); }
 .driver-telemetry-card.color-Boldi::before { background: var(--color-green); }
 .driver-telemetry-card.color-Beni::before { background: var(--color-gold); }
@@ -1566,7 +1582,7 @@ input:checked + .slider.round:before {
     opacity: 0.8;
 }
 
-.driver-telemetry-card.color-Lackó .driver-telemetry-icon { color: var(--color-purple); }
+.driver-telemetry-card.color-Lackó .driver-telemetry-icon { color: var(--color-lacko); }
 .driver-telemetry-card.color-Zsemle .driver-telemetry-icon { color: var(--color-blue); }
 .driver-telemetry-card.color-Boldi .driver-telemetry-icon { color: var(--color-green); }
 .driver-telemetry-card.color-Beni .driver-telemetry-icon { color: var(--color-gold); }
@@ -1789,8 +1805,10 @@ input:checked + .slider.round:before {
     --surface-inset: rgba(0, 0, 0, 0.04);
 
     /* High contrast solid colors for light mode */
-    --color-purple: #6c5ce7;
-    --color-purple-glow: rgba(108, 92, 231, 0.15);
+    /* --color-purple = BRAND PIROS (MBM) — a logó pirosához illő, sötétebb árnyalat */
+    --color-purple: #d81f2a;
+    --color-purple-glow: rgba(216, 31, 42, 0.16);
+    --color-lacko: #6c5ce7;   /* Lackó pilóta-azonosító szín (marad lila) */
     --color-blue: #0984e3;
     --color-blue-glow: rgba(9, 132, 227, 0.15);
     --color-cyan: #008b8b;
@@ -1901,8 +1919,9 @@ input:checked + .slider.round:before {
 }
 
 [data-theme="light"] .tab-btn.active {
-    color: var(--color-cyan) !important;
-    background: rgba(0, 139, 139, 0.08) !important;
+    color: var(--color-purple) !important;
+    background: var(--overlay-subtle) !important;
+    border-color: var(--color-purple-glow) !important;
 }
 
 [data-theme="light"] .sub-tab-btn {
@@ -1915,8 +1934,8 @@ input:checked + .slider.round:before {
 }
 
 [data-theme="light"] .sub-tab-btn.active {
-    background: rgba(0, 139, 139, 0.08) !important;
-    color: var(--color-cyan) !important;
+    background: var(--overlay-subtle) !important;
+    color: var(--color-purple) !important;
 }
 
 [data-theme="light"] #driverFilter,
@@ -2081,7 +2100,8 @@ input:checked + .slider.round:before {
     color: #b02324 !important;
 }
 [data-theme="light"] .timing-btn-toggle {
-    color: #036e6e !important;
+    color: var(--color-purple) !important;
+    border-color: var(--color-purple) !important;
 }
 
 /* ============================================================

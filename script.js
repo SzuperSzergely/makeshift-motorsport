@@ -2369,7 +2369,7 @@ function chartTheme() {
         border: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.12)',
         tooltipBg: isLight ? 'rgba(255,255,255,0.96)' : 'rgba(20,22,34,0.95)',
         driver: {
-            'Lackó': val('--color-purple', '#7c4dff'),
+            'Lackó': val('--color-lacko', '#7c4dff'),
             'Zsemle': val('--color-blue', '#0984e3'),
             'Boldi': val('--color-green', '#00c853'),
             'Beni': val('--color-gold', '#ffab00')
