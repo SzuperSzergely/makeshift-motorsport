@@ -654,17 +654,17 @@ async function fetchLiveTimingData() {
         rows.forEach(row => {
             const cells = row.querySelectorAll('td');
             // Ellenőrizzük, hogy ez egy valós csapat adatsor-e
-            if (cells.length >= 10) {
-                const rawNum = cells[2].textContent.trim();
+            if (cells.length >= 5) {
+                const rawNum = cells[1].textContent.trim();
                 // Ha a rajtszám oszlop nem szám, akkor ez nem adatsor (pl. fejléc)
                 if (rawNum && !isNaN(parseInt(rawNum))) {
-                    const pos = cells[1].textContent.trim().replace('.', '');
+                    const pos = cells[0].textContent.trim().replace('.', '');
                     const num = rawNum;
-                    const name = cells[3].textContent.trim().replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
-                    const laps = cells[8].textContent.trim();
-                    const bestLap = cells[13] ? cells[13].textContent.trim() : '';
-                    const lastLap = cells[12] ? cells[12].textContent.trim() : '';
-                    const diffPrev = cells[11] ? cells[11].textContent.trim().replace(/\u00a0/g, ' ').trim() : '';
+                    const name = cells[2].textContent.trim().replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+                    const laps = cells[3] ? cells[3].textContent.trim() : '';
+                    const bestLap = cells[4] ? cells[4].textContent.trim() : '';
+                    const lastLap = cells[8] ? cells[8].textContent.trim() : '';
+                    const diffPrev = cells[7] ? cells[7].textContent.trim().replace(/\u00a0/g, ' ').trim() : '';
                     
                     standings.push({ pos, num, name, laps, bestLap, lastLap, diffPrev });
                     newTeamMap[num] = name;
@@ -672,22 +672,14 @@ async function fetchLiveTimingData() {
                     // Ellenőrizzük az egyezést név (részleges) VAGY rajtszám (pontos) alapján
                     const queryStr = trackedTeamQuery.trim().toLowerCase();
                     const isNumMatch = num.toLowerCase() === queryStr;
-                    const isNameMatch = name.toLowerCase().includes(queryStr);
-                    
+                    const isNameMatch = queryStr.length > 0 && name.toLowerCase().includes(queryStr);
+
                     if (isNumMatch || isNameMatch) {
-                        // Kinyerjük a rajtszámot a cella click tulajdonságából vagy közvetlenül a számból
-                        const onclickAttr = cells[2].getAttribute('onclick') || cells[3].getAttribute('onclick');
-                        if (onclickAttr) {
-                            const noMatch = onclickAttr.match(/no=(\d+)/);
-                            if (noMatch) {
-                                trackedTeamNo = parseInt(noMatch[1]);
-                            } else {
-                                trackedTeamNo = parseInt(num);
-                            }
-                        } else {
-                            trackedTeamNo = parseInt(num);
-                        }
-                        // Beállítjuk a futam ID-t aktívnak, hogy jelezzük, van élő telemetria
+                        // A Chronomoto 'no' azonosító a SOR onclick attribútumában van
+                        // (pl. onClick=window.location.href='laps.php?run=...&no=8')
+                        const onclickAttr = row.getAttribute('onclick') || '';
+                        const noMatch = onclickAttr.match(/no=(\d+)/);
+                        trackedTeamNo = noMatch ? parseInt(noMatch[1]) : parseInt(num);
                         activeRunId = "active";
                     }
                 }
@@ -2281,25 +2273,28 @@ teamNameInputEl.addEventListener('keyup', (e) => {
 });
 
 // --- SAJÁT TELEMETRIA-PROXY MEZŐ (opcionális, pl. Cloudflare Worker) ---
+// A mezőt és a státuszt frissíti a localStorage alapján (a szinkron is ezt hívja).
+function refreshProxyUI() {
+    const inp = document.getElementById('proxyUrlInput');
+    const statusEl = document.getElementById('proxyStatus');
+    const v = localStorage.getItem('telemetry_proxy') || '';
+    if (inp && document.activeElement !== inp) inp.value = v;
+    if (statusEl) {
+        statusEl.textContent = v ? '✓ Saját proxy aktív (elsődleges lekérdezés)' : 'Nincs beállítva — nyilvános proxykat használ.';
+        statusEl.style.color = v ? 'var(--color-green)' : 'var(--text-muted)';
+    }
+}
 (function initProxyField() {
     const inp = document.getElementById('proxyUrlInput');
     const btn = document.getElementById('saveProxyBtn');
-    const statusEl = document.getElementById('proxyStatus');
     if (!inp || !btn) return;
-    const refresh = () => {
-        const v = localStorage.getItem('telemetry_proxy') || '';
-        if (statusEl) {
-            statusEl.textContent = v ? '✓ Saját proxy aktív (elsődleges lekérdezés)' : 'Nincs beállítva — nyilvános proxykat használ.';
-            statusEl.style.color = v ? 'var(--color-green)' : 'var(--text-muted)';
-        }
-    };
-    inp.value = localStorage.getItem('telemetry_proxy') || '';
-    refresh();
+    refreshProxyUI();
     btn.addEventListener('click', () => {
         const v = inp.value.trim();
         if (v) localStorage.setItem('telemetry_proxy', v);
         else localStorage.removeItem('telemetry_proxy');
-        refresh();
+        refreshProxyUI();
+        if (typeof syncPushProxy === 'function') syncPushProxy(); // megosztás minden eszközzel
         if (typeof showTelemetryLoadingState === 'function') showTelemetryLoadingState();
         if (typeof updateTelemetryUI === 'function') updateTelemetryUI();
     });
@@ -2660,10 +2655,16 @@ function syncPushPlan() {
 function syncPushSwaps() {
     if (syncRef && !syncApplying) syncRef.child('swapJson').set(JSON.stringify(swapLog)).catch(() => {});
 }
+function syncPushProxy() {
+    // A saját telemetria-proxy címét is megosztjuk minden eszközzel
+    if (syncRef && !syncApplying) syncRef.child('proxyUrl').set(localStorage.getItem('telemetry_proxy') || '').catch(() => {});
+}
 function syncPushAll() {
     if (!syncRef) return;
     syncRef.child('planJson').set(JSON.stringify(plan)).catch(() => {});
     syncRef.child('swapJson').set(JSON.stringify(swapLog)).catch(() => {});
+    const proxy = localStorage.getItem('telemetry_proxy');
+    if (proxy) syncRef.child('proxyUrl').set(proxy).catch(() => {});
 }
 
 function syncInit() {
@@ -2694,6 +2695,7 @@ function syncInit() {
             }
             syncApplying = true;
             let changed = false;
+            let proxyChanged = false;
             try {
                 if (data.planJson) {
                     const p = JSON.parse(data.planJson);
@@ -2707,6 +2709,16 @@ function syncInit() {
                         swapLog = Array.isArray(sw) ? sw : []; saveSwapLog(); invalidateTimeline(); changed = true;
                     }
                 }
+                // Saját telemetria-proxy szinkronizálása az eszközök között
+                if (typeof data.proxyUrl === 'string') {
+                    const curProxy = localStorage.getItem('telemetry_proxy') || '';
+                    if (data.proxyUrl !== curProxy) {
+                        if (data.proxyUrl) localStorage.setItem('telemetry_proxy', data.proxyUrl);
+                        else localStorage.removeItem('telemetry_proxy');
+                        if (typeof refreshProxyUI === 'function') refreshProxyUI();
+                        proxyChanged = true;
+                    }
+                }
             } catch (e) { console.error('Szinkron feldolgozási hiba:', e); }
             syncApplying = false;
 
@@ -2716,6 +2728,8 @@ function syncInit() {
                 updateClockDisplay();
                 updateTelemetryUI();
                 if (activeTab === 'planner' && typeof openPlanner === 'function') openPlanner();
+            } else if (proxyChanged) {
+                updateTelemetryUI();
             }
         });
 
