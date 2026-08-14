@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Style -->
-    <link rel="stylesheet" href="style.css?v=20260821">
+    <link rel="stylesheet" href="style.css?v=20260822">
 </head>
 <body>
     <div class="decor-light decor-light-1"></div>
@@ -578,6 +578,19 @@
         </button>
     </div>
 
+    <!-- FLOATING VOICE (WALKIE-TALKIE) BUTTON -->
+    <div class="floating-action-bar floating-action-bar-left">
+        <button id="btnVoicePTT" class="fab-btn fab-mic" data-tooltip="TARTSD NYOMVA — BESZÉLJ">
+            <i class="fa-solid fa-microphone"></i>
+        </button>
+    </div>
+
+    <!-- INCOMING VOICE INDICATOR -->
+    <div id="voiceIndicator" class="voice-indicator hidden">
+        <i class="fa-solid fa-volume-high"></i>
+        <span id="voiceIndicatorText">Bejövő hang…</span>
+    </div>
+
     <!-- CUSTOM ALERT MODAL -->
     <div class="warning-modal-backdrop hidden" id="customAlertModal">
         <div class="warning-modal" id="customAlertBox" style="border-top: 4px solid var(--color-cyan);">
@@ -609,6 +622,6 @@
         <!-- Firebase (felhő-szinkron; ha nincs config, helyi módban fut) -->
         <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-        <script src="script.js?v=20260821"></script>
+        <script src="script.js?v=20260822"></script>
     </body>
 </html>

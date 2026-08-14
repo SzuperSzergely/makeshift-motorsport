@@ -2634,6 +2634,7 @@ function syncInit() {
         const db = firebase.database();
         syncRef = db.ref('rooms/' + SYNC_ROOM);
         alertListenerInit = false; // az első alert-pillanatkép csak alapérték, nem mutatjuk
+        voiceListenerInit = false; // a betöltéskori (régi) hangüzenetet ne játsszuk le
         updateSyncStatus('Szinkron: kapcsolódás…', 'var(--color-gold)');
 
         // Kapcsolat-állapot kijelzése
@@ -2688,6 +2689,20 @@ function syncInit() {
             if (!a || !a.ts || a.ts <= lastAlertTsSeen) return;
             lastAlertTsSeen = a.ts;
             showCustomAlert(a.title, a.msg, a.colorVar, a.iconClass);
+        });
+
+        // Hangüzenetek (walkie-talkie) figyelése — MINDEN eszközön lejátszódnak.
+        // Betöltéskor a szobában lévő (régi) hangot nem játsszuk le, csak az újakat.
+        syncRef.child('voice').on('value', snap => {
+            const v = snap.val();
+            if (!voiceListenerInit) {
+                voiceListenerInit = true;
+                if (v && v.ts) lastVoiceTsSeen = v.ts;
+                return;
+            }
+            if (!v || !v.ts || v.ts <= lastVoiceTsSeen || !v.audio) return;
+            lastVoiceTsSeen = v.ts;
+            playIncomingVoice(v.audio);
         });
     } catch (e) {
         console.error('Szinkron inicializálási hiba:', e);
@@ -2821,6 +2836,174 @@ if (btnQuickHuman) {
     btnQuickHuman.addEventListener('click', () => {
         broadcastAlert('EMBER HIBA', 'Vezetéstechnikai hiba vagy büntetés!', '--color-orange', 'fa-solid fa-person-falling');
     });
+}
+
+// --- WALKIE-TALKIE (HANGÜZENET) ---
+// Nyomva tartod a mikrofon gombot → felvesz; elengeded → elküldi a szobának,
+// és minden csatlakozott eszközön automatikusan lejátszódik (~1-2 mp késés).
+let lastVoiceTsSeen = 0;
+let voiceListenerInit = false;
+let micStream = null;
+let voiceRecorder = null;
+let voiceChunks = [];
+let voiceRecording = false;
+let voicePttHeld = false;
+let voiceSendOnStop = false;
+let voiceRecStart = 0;
+let voiceMaxTimer = null;
+let voiceAudioEl = null;
+let voiceAudioUnlocked = false;
+const VOICE_MAX_MS = 30000;   // max. felvételi hossz (biztonsági önleállás)
+const VOICE_MIN_MS = 350;     // ennél rövidebb koppintást eldobunk (véletlen)
+
+// A böngészők blokkolják a hang automatikus lejátszását, amíg nincs
+// felhasználói interakció. Az első kattintáskor/érintéskor "feloldjuk".
+function unlockVoiceAudio() {
+    if (voiceAudioUnlocked) return;
+    voiceAudioUnlocked = true;
+    try {
+        const a = new Audio();
+        a.muted = true;
+        const p = a.play();
+        if (p && p.then) p.then(() => a.pause()).catch(() => {});
+    } catch (e) {}
+}
+window.addEventListener('pointerdown', unlockVoiceAudio, { once: true });
+window.addEventListener('touchstart', unlockVoiceAudio, { once: true });
+window.addEventListener('keydown', unlockVoiceAudio, { once: true });
+
+function pickVoiceMime() {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return '';
+    const cands = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
+    for (const m of cands) { if (MediaRecorder.isTypeSupported(m)) return m; }
+    return '';
+}
+
+async function ensureMicStream() {
+    if (micStream) return micStream;
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('A böngésző nem támogatja a mikrofont.');
+    }
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    return micStream;
+}
+
+function setMicButtonRecording(on) {
+    const btn = document.getElementById('btnVoicePTT');
+    if (btn) btn.classList.toggle('recording', !!on);
+}
+
+async function voiceStartRecording() {
+    if (voiceRecording) return;
+    if (typeof MediaRecorder === 'undefined') {
+        showCustomAlert('MIKROFON', 'A böngésző nem támogatja a hangfelvételt (MediaRecorder).', '--color-red', 'fa-solid fa-microphone-slash');
+        voicePttHeld = false;
+        return;
+    }
+    let stream;
+    try {
+        stream = await ensureMicStream();
+    } catch (e) {
+        console.error('Mikrofon hiba:', e);
+        showCustomAlert('MIKROFON', 'Nem sikerült elérni a mikrofont. Engedélyezd a böngészőben a mikrofon-hozzáférést.', '--color-red', 'fa-solid fa-microphone-slash');
+        voicePttHeld = false;
+        return;
+    }
+    // Ha közben elengedték a gombot (pl. az engedélykérés alatt), ne indítsunk.
+    if (!voicePttHeld) return;
+
+    const mime = pickVoiceMime();
+    try {
+        voiceRecorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+    } catch (e) {
+        voiceRecorder = new MediaRecorder(stream);
+    }
+    voiceChunks = [];
+    voiceSendOnStop = false;
+    voiceRecorder.ondataavailable = ev => { if (ev.data && ev.data.size > 0) voiceChunks.push(ev.data); };
+    voiceRecorder.onstop = () => {
+        setMicButtonRecording(false);
+        const elapsed = Date.now() - voiceRecStart;
+        if (!voiceSendOnStop || elapsed < VOICE_MIN_MS || voiceChunks.length === 0) return;
+        const blob = new Blob(voiceChunks, { type: (voiceRecorder && voiceRecorder.mimeType) || 'audio/webm' });
+        const reader = new FileReader();
+        reader.onloadend = () => { voiceBroadcast(reader.result); };
+        reader.readAsDataURL(blob);
+    };
+    voiceRecording = true;
+    voiceRecStart = Date.now();
+    setMicButtonRecording(true);
+    try { voiceRecorder.start(); } catch (e) { voiceRecording = false; setMicButtonRecording(false); return; }
+    // Biztonsági önleállás max. hossznál
+    if (voiceMaxTimer) clearTimeout(voiceMaxTimer);
+    voiceMaxTimer = setTimeout(() => { voiceStopRecording(true); }, VOICE_MAX_MS);
+}
+
+function voiceStopRecording(send) {
+    if (voiceMaxTimer) { clearTimeout(voiceMaxTimer); voiceMaxTimer = null; }
+    if (!voiceRecording) return;
+    voiceRecording = false;
+    voiceSendOnStop = !!send;
+    try { voiceRecorder.stop(); } catch (e) { setMicButtonRecording(false); }
+}
+
+function voiceBroadcast(dataUrl) {
+    if (!dataUrl) return;
+    // RTDB-barát méretkorlát (kb. 30 mp opus bőven belefér ebbe)
+    if (dataUrl.length > 900000) {
+        showCustomAlert('HANGÜZENET', 'A felvétel túl hosszú lett a küldéshez. Próbáld rövidebben.', '--color-orange', 'fa-solid fa-triangle-exclamation');
+        return;
+    }
+    if (typeof syncRef !== 'undefined' && syncRef) {
+        const ts = Date.now();
+        lastVoiceTsSeen = ts; // a saját hangunkat ne játsszuk vissza
+        syncRef.child('voice').set({ audio: dataUrl, ts }).catch(() => {});
+    } else {
+        showCustomAlert('HANGÜZENET', 'A szinkron nincs beállítva — a hang nem küldhető el a többi eszközre.', '--color-orange', 'fa-solid fa-triangle-exclamation');
+    }
+}
+
+let voiceIndicatorTimer = null;
+function showVoiceIndicator() {
+    const el = document.getElementById('voiceIndicator');
+    if (!el) return;
+    el.classList.remove('hidden');
+    if (voiceIndicatorTimer) clearTimeout(voiceIndicatorTimer);
+    voiceIndicatorTimer = setTimeout(() => el.classList.add('hidden'), 4000);
+}
+
+function playIncomingVoice(dataUrl) {
+    showVoiceIndicator();
+    try {
+        if (!voiceAudioEl) voiceAudioEl = new Audio();
+        voiceAudioEl.src = dataUrl;
+        const p = voiceAudioEl.play();
+        if (p && p.catch) p.catch(err => {
+            console.warn('Hang lejátszás blokkolva (érintsd meg egyszer az oldalt):', err);
+        });
+    } catch (e) { console.error('Hang lejátszási hiba:', e); }
+}
+
+// Gomb bekötése — NYOMVA TARTÁS (pointer események: egér + érintés egyben)
+const btnVoicePTT = document.getElementById('btnVoicePTT');
+if (btnVoicePTT) {
+    const beginPTT = (e) => {
+        e.preventDefault();
+        if (voicePttHeld) return;
+        try { btnVoicePTT.setPointerCapture(e.pointerId); } catch (_) {}
+        voicePttHeld = true;
+        voiceStartRecording();
+    };
+    const endPTT = (e) => {
+        if (e) e.preventDefault();
+        if (!voicePttHeld) return;
+        voicePttHeld = false;
+        voiceStopRecording(true);
+    };
+    btnVoicePTT.addEventListener('pointerdown', beginPTT);
+    btnVoicePTT.addEventListener('pointerup', endPTT);
+    btnVoicePTT.addEventListener('pointercancel', endPTT);
+    btnVoicePTT.addEventListener('contextmenu', e => e.preventDefault());
 }
 
 // --- VERSENY VÉGI STATISZTIKA ---

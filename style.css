@@ -2325,3 +2325,71 @@ input:checked + .slider.round:before {
 .fab-engine:hover { box-shadow: 0 0 20px rgba(255, 23, 68, 0.6); }
 .fab-human:hover { box-shadow: 0 0 20px rgba(255, 145, 0, 0.6); }
 
+/* --- WALKIE-TALKIE (VOICE) BUTTON — left side --- */
+.floating-action-bar-left {
+    right: auto;
+    left: 30px;
+}
+
+/* On the left bar the tooltip points to the RIGHT of the button */
+.floating-action-bar-left .fab-btn::after {
+    right: auto;
+    left: 125%;
+    transform: translateY(-50%) scale(0.8);
+}
+.floating-action-bar-left .fab-btn:hover::after {
+    transform: translateY(-50%) scale(1);
+}
+
+/* Microphone (push-to-talk) button */
+.fab-mic {
+    background: linear-gradient(135deg, #b388ff, #7c4dff);
+    color: #fff;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+.fab-mic:hover { box-shadow: 0 0 20px rgba(124, 77, 255, 0.6); }
+.fab-mic i { pointer-events: none; }
+
+/* Active recording — pulsing red */
+.fab-mic.recording {
+    background: linear-gradient(135deg, #ff1744, #d50000);
+    color: #fff;
+    animation: micPulse 1s ease-in-out infinite;
+}
+@keyframes micPulse {
+    0%   { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0.6); }
+    70%  { box-shadow: 0 0 0 18px rgba(255, 23, 68, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 23, 68, 0); }
+}
+
+/* Incoming-voice indicator (toast) */
+.voice-indicator {
+    position: fixed;
+    left: 50%;
+    bottom: 30px;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, #7c4dff, #b388ff);
+    color: #fff;
+    padding: 12px 22px;
+    border-radius: 30px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    letter-spacing: 0.5px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+    z-index: 1200;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.voice-indicator i { font-size: 1.2rem; }
+.voice-indicator.hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-50%) translateY(12px);
+    pointer-events: none;
+}
+
