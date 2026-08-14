@@ -292,6 +292,9 @@ function loadSwapLog() {
 }
 
 function saveSwapLog() {
+    // SZIMULÁCIÓ alatt NEM mentünk és NEM szinkronizálunk — a cserék csak
+    // memóriában élnek, így frissítéskor / szimuláció kikapcsolásakor eltűnnek.
+    if (isSimulating) return;
     try {
         localStorage.setItem(SWAP_STORAGE_KEY, JSON.stringify(swapLog));
     } catch (e) {
@@ -1948,6 +1951,10 @@ simToggleEl.addEventListener('change', (e) => {
     } else {
         sliderGroupEl.classList.add('disabled');
         timeSimSliderEl.disabled = true;
+        // A szimuláció alatti (nem mentett) cseréket eldobjuk: visszaáll a valós állapot
+        swapLog = loadSwapLog();
+        invalidateTimeline();
+        refreshSwapButtons();
     }
 
     updateUI();
