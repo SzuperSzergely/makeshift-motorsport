@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Style -->
-    <link rel="stylesheet" href="style.css?v=20260830">
+    <link rel="stylesheet" href="style.css?v=20260831">
 </head>
 <body>
     <div class="decor-light decor-light-1"></div>
@@ -307,12 +307,10 @@
                         </div>
                     </div>
 
-                    <!-- 2. Grafikon: Pilóták Köridői -->
+                    <!-- 2. Grafikon: Pilóták Köridői (pilótánként külön mini-diagram) -->
                     <div class="hero-card">
                         <div class="card-tag">PILÓTÁK KÖRIDEJE</div>
-                        <div style="height: 350px; width: 100%; position: relative;">
-                            <canvas id="lapTimesChart"></canvas>
-                        </div>
+                        <div id="lapChartsGrid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin-top: 10px;"></div>
                     </div>
                 </div>
 
@@ -630,6 +628,6 @@
         <!-- Firebase (felhő-szinkron; ha nincs config, helyi módban fut) -->
         <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-        <script src="script.js?v=20260830"></script>
+        <script src="script.js?v=20260831"></script>
     </body>
 </html>

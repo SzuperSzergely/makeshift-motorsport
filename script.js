@@ -1666,8 +1666,9 @@ function updateUI() {
                     refuelBannerEl.classList.add('hidden');
                 }
 
-                // A központi riasztás modal CSAK élesben (szimulációban nem ugrik fel)
-                if (!isSimulating && dismissedStageId !== nextId) {
+                // A központi riasztás modal élesben ÉS szimulációban is felugrik
+                // (a teszteléshez, hogy lásd, hogyan viselkedik éles versenyen)
+                if (dismissedStageId !== nextId) {
                     warningMessageModalEl.textContent = `${nextDriver} következik ${diffMinutes} percen belül (${nextStartStr})! Kezdjen el készülni!`;
                     warningModalEl.classList.remove('hidden');
                 } else {
@@ -2319,7 +2320,7 @@ themeToggleBtnEl.addEventListener('click', () => {
 // --- GRAFIKONOK (CHART.JS) LOGIKA ---
 
 let posChartInstance = null;
-let lapTimesChartInstance = null;
+let lapChartInstances = []; // pilótánkénti mini-diagramok Chart példányai
 
 function savePositionHistory(posString) {
     if (!posString) return;
@@ -2492,112 +2493,104 @@ function drawCharts() {
         if (stored) allLaps = JSON.parse(stored);
     } catch (e) {}
 
-    const driverLaps = {};
-    let fbIdx = 0;
-    const rangeVals = [];
-
+    // Pilótánként összegyűjtjük a valós köröket (a saját sorszámukkal)
+    const perDriver = {}; // driver -> [{seq, sec, lapNum}]
+    const allSecs = [];
     allLaps.forEach((lap, idx) => {
         const driver = lap.driver || getDriverForAbsMin(lapAbsMin(lap)) || 'Ismeretlen';
         const sec = lapTimeToSeconds(lap.lapTime);
-
-        if (!driverLaps[driver]) {
-            driverLaps[driver] = {
-                color: T.driver[driver] || T.fallback[fbIdx++ % T.fallback.length],
-                data: []
-            };
-        }
-        if (sec && !isNaN(sec) && sec !== Infinity && sec >= 50 && sec <= 180) {
-            const currentLapNum = parseInt(lap.lapNum) || (idx + 1);
-            const dataArr = driverLaps[driver].data;
-            // Megszakítás esetén null pont, hogy ne legyen átlós, képernyőt átszelő vonal
-            if (dataArr.length > 0) {
-                const lastPoint = dataArr[dataArr.length - 1];
-                if (lastPoint.y !== null && currentLapNum - lastPoint.x > 1) {
-                    dataArr.push({ x: currentLapNum - 0.5, y: null });
-                }
-            }
-            dataArr.push({ x: currentLapNum, y: sec });
-            if (sec <= 100) rangeVals.push(sec); // a tengely-tartományhoz a reális körök
-        }
+        if (!sec || isNaN(sec) || sec === Infinity || sec < 50 || sec > 180) return;
+        if (!perDriver[driver]) perDriver[driver] = [];
+        const lapNum = parseInt(lap.lapNum) || (idx + 1);
+        perDriver[driver].push({ seq: perDriver[driver].length + 1, sec, lapNum });
+        allSecs.push(sec);
     });
 
-    // Adaptív y-tartomány a tényleges köridőkből (kiugró kiállások nélkül)
-    let yMin = 60, yMax = 90;
-    if (rangeVals.length) {
-        yMin = Math.max(50, Math.floor(Math.min(...rangeVals) - 1));
-        yMax = Math.min(120, Math.ceil(Math.max(...rangeVals) + 1));
-        if (yMax - yMin < 6) yMax = yMin + 6;
+    // Közös, szoros y-skála: a lassú kiállások (boksz) ne nyomják össze a skálát.
+    // A felső ~8%-ot (kiugró körök) levágjuk a tengelyről.
+    let yMin = 60, yMax = 80;
+    if (allSecs.length) {
+        const sorted = allSecs.slice().sort((a, b) => a - b);
+        const pct = q => sorted[Math.min(sorted.length - 1, Math.max(0, Math.floor(q * (sorted.length - 1))))];
+        yMin = Math.floor(pct(0) - 0.5);
+        yMax = Math.ceil(pct(0.92) + 0.5);
+        if (yMax - yMin < 4) yMax = yMin + 4;
     }
 
-    const datasets = Object.keys(driverLaps).map(driver => {
-        const c = driverLaps[driver].color;
-        return {
-            label: driver,
-            data: driverLaps[driver].data,
-            borderColor: c,
-            backgroundColor: c,
-            pointBackgroundColor: c,
-            pointBorderColor: c,
-            borderWidth: 2,
-            tension: 0.25,
-            showLine: true,
-            spanGaps: false,
-            pointRadius: 2,
-            pointHoverRadius: 6,
-            pointHoverBorderWidth: 2,
-            pointHoverBorderColor: T.isLight ? '#fff' : '#0d0f18'
-        };
-    });
+    const grid = document.getElementById('lapChartsGrid');
+    if (grid) {
+        lapChartInstances.forEach(c => { try { c.destroy(); } catch (e) {} });
+        lapChartInstances = [];
+        grid.innerHTML = '';
 
-    const lapCanvas = document.getElementById('lapTimesChart');
-    const lapCtx = lapCanvas.getContext('2d');
-    if (lapTimesChartInstance) lapTimesChartInstance.destroy();
+        // A DRIVERS sorrendjében, majd az esetleges egyéb (pl. „Ismeretlen") nevek
+        const orderedDrivers = DRIVERS.filter(d => perDriver[d] && perDriver[d].length);
+        Object.keys(perDriver).forEach(d => { if (!orderedDrivers.includes(d)) orderedDrivers.push(d); });
 
-    lapTimesChartInstance = new Chart(lapCtx, {
-        type: 'scatter',
-        data: { datasets: datasets },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: { mode: 'nearest', intersect: false },
-            animation: { duration: 500 },
-            layout: { padding: { top: 6, right: 8 } },
-            scales: {
-                y: {
-                    min: yMin, max: yMax,
-                    ticks: {
-                        color: T.muted, padding: 6, maxTicksLimit: 8,
-                        callback: (value) => secondsToLapTime(value)
-                    },
-                    grid: { color: T.grid, drawTicks: false },
-                    border: { display: false },
-                    title: { display: true, text: 'Köridő', color: T.muted, font: { weight: '600' } }
-                },
-                x: {
-                    type: 'linear',
-                    title: { display: true, text: 'Körszám (összesített)', color: T.muted, font: { weight: '600' } },
-                    ticks: { color: T.muted, precision: 0, maxTicksLimit: 12 },
-                    grid: { display: false },
-                    border: { color: T.border }
-                }
-            },
-            plugins: {
-                legend: {
-                    labels: {
-                        color: T.text, usePointStyle: true, pointStyle: 'circle',
-                        padding: 16, boxWidth: 8, font: { weight: '600' }
-                    }
-                },
-                tooltip: {
-                    ...commonTooltip,
-                    callbacks: {
-                        title: (items) => items.length ? `${items[0].raw.x}. kör` : '',
-                        label: (ctx) => `  ${ctx.dataset.label}: ${secondsToLapTime(ctx.raw.y)}`
-                    }
-                }
-            }
+        if (!orderedDrivers.length) {
+            grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; color:var(--text-muted); padding:30px 0;">Még nincs köridő-adat — indítsd el a követést egy aktív futam alatt.</div>`;
+            return;
         }
-    });
+
+        const movAvg = (arr, w) => arr.map((p, i) => {
+            const sl = arr.slice(Math.max(0, i - w), i + 1);
+            return { x: p.seq, y: sl.reduce((a, b) => a + b.sec, 0) / sl.length };
+        });
+
+        orderedDrivers.forEach((driver, idx) => {
+            const laps = perDriver[driver];
+            const color = T.driver[driver] || T.fallback[idx % T.fallback.length];
+            const clean = laps.filter(p => p.sec <= yMax + 0.001);
+            const best = laps.reduce((m, p) => p.sec < m.sec ? p : m, laps[0]);
+            const avgArr = clean.length ? clean : laps;
+            const avg = avgArr.reduce((s, p) => s + p.sec, 0) / avgArr.length;
+
+            const card = document.createElement('div');
+            card.className = 'lap-mini-card';
+            card.innerHTML =
+                `<div class="lap-mini-head">
+                    <div class="lap-mini-name"><span class="lap-mini-dot" style="background:${color};"></span>${driver}</div>
+                    <span class="lap-mini-count">${laps.length} kör</span>
+                </div>
+                <div class="lap-mini-stats">
+                    <div><div class="lap-mini-lbl">Leggyorsabb</div><div class="lap-mini-val" style="color:${color};">${secondsToLapTime(best.sec)}</div></div>
+                    <div><div class="lap-mini-lbl">Átlag</div><div class="lap-mini-val">${secondsToLapTime(avg)}</div></div>
+                </div>
+                <div class="lap-mini-canvas"><canvas></canvas></div>`;
+            grid.appendChild(card);
+
+            const ctx = card.querySelector('canvas').getContext('2d');
+            const inst = new Chart(ctx, {
+                data: { datasets: [
+                    { type: 'line', data: movAvg(laps, 5), borderColor: color, borderWidth: 2.5, pointRadius: 0, tension: 0.4, fill: 'start', backgroundColor: hexToRgba(color, 0.08) },
+                    { type: 'scatter', data: clean.map(p => ({ x: p.seq, y: p.sec, lapNum: p.lapNum })), backgroundColor: hexToRgba(color, 0.45), pointRadius: 2.4, pointHoverRadius: 5 },
+                    { type: 'scatter', data: [{ x: best.seq, y: best.sec, lapNum: best.lapNum }], backgroundColor: '#f0a52a', pointStyle: 'rectRot', pointRadius: 7, pointHoverRadius: 9, borderColor: T.isLight ? '#fff' : '#0d0f18', borderWidth: 1.5 }
+                ]},
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', intersect: false },
+                    animation: { duration: 400 },
+                    layout: { padding: { top: 6, right: 4 } },
+                    scales: {
+                        y: { min: yMin, max: yMax, ticks: { color: T.muted, callback: v => secondsToLapTime(v), maxTicksLimit: 4, font: { size: 10 }, padding: 4 }, grid: { color: T.grid, drawTicks: false }, border: { display: false } },
+                        x: { type: 'linear', min: 0, ticks: { display: false }, grid: { display: false }, border: { display: false } }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            ...commonTooltip,
+                            callbacks: {
+                                title: (items) => items.length ? `${items[0].raw.lapNum}. kör` : '',
+                                label: (ctx2) => `  ${secondsToLapTime(ctx2.raw.y)}`
+                            }
+                        }
+                    }
+                }
+            });
+            lapChartInstances.push(inst);
+        });
+    }
 }
 
 // --- RENDSZER INDÍTÁSA ---
