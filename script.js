@@ -147,8 +147,8 @@ let simTimeMinutes = 900; // Alapértelmezett: 15:00 (15 * 60)
 let currentFilter = 'all';
 let dismissedStageId = null; // Ideiglenesen elnémított riasztási ablak etap ID-ja
 let dismissedBannerStageId = null; // Ideiglenesen bezárt figyelmeztető sáv etap ID-ja
-let trackedTeamQuery = "25"; // Alapértelmezett követési keresés (név vagy rajtszám)
-let trackedTeamNo = 25; // Adatbázis azonosító (Chronomoto 'no' paraméter)
+let trackedTeamQuery = localStorage.getItem('tracked_team_query') || "25"; // Követési keresés (név vagy rajtszám) — frissítés után is megjegyezve
+let trackedTeamNo = parseInt(localStorage.getItem('tracked_team_no'), 10) || 25; // Adatbázis azonosító (Chronomoto 'no' paraméter)
 let activeRunId = null; // Chronomoto futam ID
 let activeTab = 'schedule'; // schedule vagy team
 let activeStatsSubTab = 'race'; // race (Versenyfutam) vagy qualy (Időmérő)
@@ -598,6 +598,14 @@ const TELEMETRY_PROXIES = [
 ];
 
 async function fetchWithProxy(targetUrl) {
+    // Opcionális SAJÁT proxy (pl. ingyenes Cloudflare Worker). Ha be van állítva
+    // (localStorage 'telemetry_proxy', pl. 'https://valami.workers.dev/?url='),
+    // ez lesz az ELSŐDLEGES — nincs rate-limit, gyors és megbízható a verseny alatt.
+    const selfProxy = (typeof localStorage !== 'undefined' && localStorage.getItem('telemetry_proxy')) || '';
+    const proxyList = selfProxy
+        ? [{ name: 'saját proxy', build: u => selfProxy + encodeURIComponent(u), timeout: 8000 }, ...TELEMETRY_PROXIES]
+        : TELEMETRY_PROXIES;
+
     // 1) Közvetlen próba — ha a forrás valaha CORS-fejlécet adna, ez a leggyorsabb.
     //    (CORS-hiba esetén szinte azonnal elhasal, nem lassít.)
     try {
@@ -612,7 +620,7 @@ async function fetchWithProxy(targetUrl) {
 
     // 2) Proxyk sorban
     let lastErr = null;
-    for (const p of TELEMETRY_PROXIES) {
+    for (const p of proxyList) {
         try {
             const response = await fetchWithTimeout(p.build(targetUrl), {}, p.timeout);
             if (!response.ok) throw new Error('HTTP ' + response.status);
@@ -2176,6 +2184,14 @@ if (clearDbBtnEl) {
     });
 }
 
+// A követett csapat megjegyzése — frissítés után is ugyanazt kövesse
+function saveTrackedTeam() {
+    try {
+        localStorage.setItem('tracked_team_query', trackedTeamQuery || '');
+        if (trackedTeamNo) localStorage.setItem('tracked_team_no', String(trackedTeamNo));
+    } catch (e) {}
+}
+
 // Kétoldali automatikus kitöltés (Rajtszám <-> Csapatnév)
 teamNumberInputEl.addEventListener('input', () => {
     const rsz = teamNumberInputEl.value.trim();
@@ -2224,7 +2240,8 @@ updateTeamQueryBtnEl.addEventListener('click', (e) => {
     }
     
     console.log("Beállított követett rajtszám (trackedTeamNo):", trackedTeamNo, "| Lekérdezési szöveg (trackedTeamQuery):", trackedTeamQuery);
-    
+
+    saveTrackedTeam();
     showTelemetryLoadingState();
     updateTelemetryUI();
 });
@@ -2238,6 +2255,7 @@ teamNumberInputEl.addEventListener('keyup', (e) => {
             if (!isNaN(parseInt(val))) {
                 trackedTeamNo = parseInt(val);
             }
+            saveTrackedTeam();
             showTelemetryLoadingState();
             updateTelemetryUI();
         }
@@ -2249,12 +2267,13 @@ teamNameInputEl.addEventListener('keyup', (e) => {
         const val = teamNameInputEl.value.trim();
         if (val) {
             trackedTeamQuery = val;
-            const matchedRsz = Object.keys(teamMap).find(key => 
+            const matchedRsz = Object.keys(teamMap).find(key =>
                 teamMap[key].toLowerCase().includes(val.toLowerCase())
             );
             if (matchedRsz) {
                 trackedTeamNo = parseInt(matchedRsz);
             }
+            saveTrackedTeam();
             showTelemetryLoadingState();
             updateTelemetryUI();
         }
@@ -2731,17 +2750,30 @@ function init() {
         syncRoomBtn.addEventListener('click', () => setSyncRoom(syncRoomInput.value));
     }
 
-    // Telemetria lekérdezés indítása és frissítése 2 másodpercenként.
-    // SZIMULÁCIÓBAN csak akkor rajzoljuk újra, ha változott a szimulált idő —
-    // így nem villog/ugrál magától (a mock köridők amúgy determinisztikusak).
+    // A megjegyzett követett csapat visszatöltése az input mezőkbe (frissítés után is látszódjon)
+    if (teamNumberInputEl && /^\d+$/.test(trackedTeamQuery)) {
+        teamNumberInputEl.value = trackedTeamQuery;
+    } else if (teamNameInputEl && trackedTeamQuery) {
+        teamNameInputEl.value = trackedTeamQuery;
+    }
+    if (teamNameInputEl && !teamNameInputEl.value && teamMap[trackedTeamNo]) {
+        teamNameInputEl.value = teamMap[trackedTeamNo];
+    }
+
+    // Telemetria frissítése. SZIMULÁCIÓBAN 2 mp-enként (nincs hálózat, determinisztikus
+    // mock — maradhat gyors). ÉLESBEN viszont csak ~8 mp-enként kérdezünk a hálózatról,
+    // mert a nyilvános CORS-proxyk sűrű pollozásnál rate-limitelnek (429). A köridők
+    // úgyis ~percenként frissülnek, szóval ez bőven elég.
+    let telemetryTick = 0;
     updateTelemetryUI();
     setInterval(() => {
+        telemetryTick++;
         if (isSimulating) {
             if (simTimeMinutes !== lastSimTelemetryMin) {
                 lastSimTelemetryMin = simTimeMinutes;
                 updateTelemetryUI();
             }
-        } else {
+        } else if (telemetryTick % 4 === 0) { // ~8 másodpercenként
             updateTelemetryUI();
         }
     }, 2000);
