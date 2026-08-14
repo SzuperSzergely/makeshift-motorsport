@@ -1716,10 +1716,10 @@ function updateUI() {
             const remaining = targetEndMin - currentTimeMinutes; // <0, ha késésben (túlfutott)
             const percent = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
 
-            // A tervező sorfolytonos számozását követi: hányadik etap az EGÉSZ terven
-            // belül (minden cserénél nő), nem a pilóta hányadik köre.
-            const etapNum = activeSeg.stintIndex != null ? activeSeg.stintIndex + 1 : (activeSeg.etap || 1);
-            const etapTotal = SCHEDULE.length; // a terv összes etapja
+            // Az "etap" PILÓTÁNKÉNT számít: az aktív pilóta hányadszor van fenn,
+            // a saját összes felmenetele közül (pl. Lackó 6× megy fel → "Etap 2 / 6").
+            const etapNum = activeSeg.etap != null ? activeSeg.etap : 1;
+            const etapTotal = getTimeline().filter(s => s.driver === activeSeg.driver).length;
             activeDriverStageEl.textContent = isManual
                 ? `Kézi csere • Etap ${etapNum} / ${etapTotal}`
                 : `Etap ${etapNum} / ${etapTotal}`;
@@ -1842,7 +1842,7 @@ function renderTable(currentTimeMinutes) {
             }
         }
 
-        const etapNum = seg.stintIndex != null ? seg.stintIndex + 1 : (seg.etap || 1); // a tervező sorfolytonos etap-száma
+        const etapNum = seg.etap != null ? seg.etap : 1; // PILÓTÁNKÉNTI etap: az adott pilóta hányadszor megy fel
         const manualTag = seg.manualStart
             ? ` <span class="driver-etap" style="color: var(--color-gold);" title="Kézi csere ezen a ponton">• kézi</span>`
             : '';
