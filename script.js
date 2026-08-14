@@ -586,49 +586,45 @@ async function fetchWithTimeout(url, options = {}, timeout = 6000) {
     }
 }
 
-// --- PROXY ALAPÚ ADATLEKÉRDEZÉS AUTOMATIKUS TARTALÉK MEGOLDÁSSAL (KÖZVETLEN + 3-TÉNYEZŐS FAILOVER) ---
+// --- PROXY ALAPÚ ADATLEKÉRDEZÉS AUTOMATIKUS TARTALÉK MEGOLDÁSSAL ---
+// A Chronomoto nem küld CORS-fejlécet, ezért a böngészőből csak CORS-proxyn át
+// érhető el. A proxyk sorrendben (elsődleges → tartalék); az elsőt, ami valós
+// adatot ad, használjuk. corsproxy.io a leggyorsabb és böngészőből megbízható
+// (a böngésző automatikusan küldi az Origin fejlécet, amit elvár).
+const TELEMETRY_PROXIES = [
+    { name: 'corsproxy.io', build: u => 'https://corsproxy.io/?url=' + encodeURIComponent(u), timeout: 8000 },
+    { name: 'AllOrigins',   build: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u), timeout: 11000 },
+    { name: 'CodeTabs',     build: u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u), timeout: 9000 },
+];
+
 async function fetchWithProxy(targetUrl) {
-    const alloriginsUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl);
-    const codetabsUrl = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(targetUrl);
-    const thingproxyUrl = 'https://thingproxy.freeboard.io/fetch/' + targetUrl;
-    
-    // Először megpróbáljuk KÖZVETLENÜL lekérni (CORS kiegészítő engedélyezése esetén ez azonnali és tökéletes!)
+    // 1) Közvetlen próba — ha a forrás valaha CORS-fejlécet adna, ez a leggyorsabb.
+    //    (CORS-hiba esetén szinte azonnal elhasal, nem lassít.)
     try {
-        console.log("Megkísérlés közvetlen lekérdezéssel (CORS kiegészítő ellenőrzése)...");
         const response = await fetchWithTimeout(targetUrl, {}, 4000);
         if (response.ok) {
-            console.log("Sikeres közvetlen lekérdezés!");
-            return await response.text();
+            const t = await response.text();
+            if (t && t.length > 30) { console.log('Telemetria: közvetlen lekérdezés sikeres.'); return t; }
         }
-        throw new Error('Közvetlen válaszkód: ' + response.status);
     } catch (directError) {
-        console.warn("Közvetlen lekérdezés sikertelen (CORS korlátozás), próbálkozás a proxykkal...", directError.message);
-        
-        // Ha közvetlenül nem ment, jönnek a proxyk sorban
+        // várható CORS-hiba — megyünk a proxykra
+    }
+
+    // 2) Proxyk sorban
+    let lastErr = null;
+    for (const p of TELEMETRY_PROXIES) {
         try {
-            console.log("Kapcsolódás a Chronomoto-hoz AllOrigins proxy-n keresztül...");
-            const response = await fetchWithTimeout(alloriginsUrl, {}, 5000);
-            if (response.ok) return await response.text();
-            throw new Error('AllOrigins válaszkód: ' + response.status);
+            const response = await fetchWithTimeout(p.build(targetUrl), {}, p.timeout);
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const t = await response.text();
+            if (t && t.length > 30) { console.log('Telemetria proxy sikeres:', p.name); return t; }
+            throw new Error('üres/rövid válasz');
         } catch (e) {
-            console.warn('AllOrigins proxy sikertelen, próbálkozás a CodeTabs proxy-val...', e.message);
-            try {
-                const response = await fetchWithTimeout(codetabsUrl, {}, 5000);
-                if (response.ok) return await response.text();
-                throw new Error('CodeTabs válaszkód: ' + response.status);
-            } catch (e2) {
-                console.warn('CodeTabs proxy sikertelen, próbálkozás a ThingProxy-val...', e2.message);
-                try {
-                    const response = await fetchWithTimeout(thingproxyUrl, {}, 5000);
-                    if (response.ok) return await response.text();
-                    throw new Error('ThingProxy válaszkód: ' + response.status);
-                } catch (e3) {
-                    console.error('Minden lekérdezési mód (közvetlen + 3 proxy) sikertelen volt!', e3.message);
-                    throw new Error(`Kapcsolódás sikertelen. Kérjük, engedélyezd a kiegészítőt a fájl URL-ekhez! Részletek: ${e3.message}`);
-                }
-            }
+            lastErr = e;
+            console.warn('Telemetria proxy sikertelen (' + p.name + '):', e.message);
         }
     }
+    throw new Error('Minden lekérdezési mód sikertelen. Utolsó hiba: ' + (lastErr ? lastErr.message : 'ismeretlen'));
 }
 
 // --- CHRONOMOTO LIVE TELEMETRIA LEKÉRDEZÉS ÉS MEGJELENÍTÉS ---
