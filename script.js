@@ -587,15 +587,13 @@ async function fetchWithTimeout(url, options = {}, timeout = 6000) {
     }
 }
 
-// --- ADATLEKÉRDEZÉS A SAJÁT CLOUDFLARE WORKER PROXYKON KERESZTÜL ---
+// --- ADATLEKÉRDEZÉS A SAJÁT CLOUDFLARE WORKER PROXYN KERESZTÜL ---
 // A Chronomoto nem küld CORS-fejlécet, ezért böngészőből csak proxyn át érhető el.
-// KIZÁRÓLAG saját Cloudflare Workereket használunk (nincs nyilvános proxy): nincs
-// rate-limit, gyors és megbízható. Elsődleges → tartalék sorrendben próbálkozunk:
-// ha az első kifut a keretből (vagy leáll), automatikusan a másodikra vált.
-// A localStorage 'telemetry_proxy' egy egyedi címet tehet a lista ELEJÉRE.
+// KIZÁRÓLAG a saját Cloudflare Workert használjuk (nincs nyilvános proxy): nincs
+// rate-limit, gyors és megbízható. A localStorage 'telemetry_proxy' egy egyedi
+// címet tehet a lista ELEJÉRE (pl. ha új Workert hozol létre).
 const TELEMETRY_WORKERS = [
-    'https://msb-proxy.szaszegri.workers.dev/?url=',    // elsődleges
-    'https://msb-proxy-2.szaszegri.workers.dev/?url=',  // tartalék (backup)
+    'https://msb-proxy.szaszegri.workers.dev/?url=',    // elsődleges (és egyetlen)
 ];
 
 function telemetryProxyList() {
@@ -2270,7 +2268,7 @@ function refreshProxyUI() {
     const v = localStorage.getItem('telemetry_proxy') || '';
     if (inp && document.activeElement !== inp) inp.value = v;
     if (statusEl) {
-        statusEl.textContent = v ? '✓ Egyedi proxy aktív (elsődleges) + beépített tartalék' : '✓ Beépített Workerek aktívak (elsődleges + tartalék)';
+        statusEl.textContent = v ? '✓ Egyedi proxy aktív' : '✓ Beépített Worker aktív (msb-proxy)';
         statusEl.style.color = 'var(--color-green)';
     }
 }
