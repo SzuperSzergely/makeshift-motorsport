@@ -149,7 +149,8 @@ let dismissedStageId = null; // Ideiglenesen elnémított riasztási ablak etap 
 let dismissedBannerStageId = null; // Ideiglenesen bezárt figyelmeztető sáv etap ID-ja
 let trackedTeamQuery = localStorage.getItem('tracked_team_query') || "25"; // Követési keresés (név vagy rajtszám) — frissítés után is megjegyezve
 let trackedTeamNo = parseInt(localStorage.getItem('tracked_team_no'), 10) || 25; // Adatbázis azonosító (Chronomoto 'no' paraméter)
-let activeRunId = null; // Chronomoto futam ID
+let activeRunId = null; // Chronomoto futam ID (aktív jelző)
+let activeRunNo = null; // Chronomoto 'run' paraméter — a köridő-lekérdezéshez kell
 let activeTab = 'schedule'; // schedule vagy team
 let activeStatsSubTab = 'race'; // race (Versenyfutam) vagy qualy (Időmérő)
 let teamMap = { "25": "MakeShiftBrothers" }; // Rajtszám <-> Csapatnév összekapcsolás adatbázis
@@ -669,6 +670,10 @@ async function fetchLiveTimingData() {
                     standings.push({ pos, num, name, laps, bestLap, lastLap, diffPrev });
                     newTeamMap[num] = name;
 
+                    // A futam 'run' azonosítója a sor onclick-jéből (a köridőkhöz kell)
+                    const rowOnclickRun = (row.getAttribute('onclick') || '').match(/run=(\d+)/);
+                    if (rowOnclickRun) activeRunNo = rowOnclickRun[1];
+
                     // Ellenőrizzük az egyezést név (részleges) VAGY rajtszám (pontos) alapján
                     const queryStr = trackedTeamQuery.trim().toLowerCase();
                     const isNumMatch = num.toLowerCase() === queryStr;
@@ -955,7 +960,7 @@ async function updateTelemetryUI() {
             renderDriverTelemetryCards(mockLaps);
         } else {
             if (trackedTeamNo) {
-                await fetchAndRenderRealTelemetry(null, trackedTeamNo);
+                await fetchAndRenderRealTelemetry(activeRunNo, trackedTeamNo);
             } else {
                 showTelemetryError("Kérjük, add meg a követni kívánt csapat rajtszámát vagy nevét.");
             }
@@ -1381,7 +1386,8 @@ function reconstructLapsTimeline(rawLaps) {
 // Köridők lekérdezése lapdata.php-ről proxy segítségével
 async function fetchAndRenderRealTelemetry(runId, teamNumber) {
     try {
-        const targetUrl = `https://live.chronomoto.com/bssw/lapdata.php?no=${teamNumber}&t=${Date.now()}`;
+        const runPart = runId ? `run=${runId}&` : '';
+        const targetUrl = `https://live.chronomoto.com/bssw/lapdata.php?${runPart}no=${teamNumber}&o=&t=${Date.now()}`;
         const htmlText = await fetchWithProxy(targetUrl);
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, 'text/html');
@@ -2799,23 +2805,31 @@ function init() {
         teamNameInputEl.value = teamMap[trackedTeamNo];
     }
 
-    // Telemetria frissítése. SZIMULÁCIÓBAN 2 mp-enként (nincs hálózat, determinisztikus
-    // mock — maradhat gyors). ÉLESBEN viszont csak ~8 mp-enként kérdezünk a hálózatról,
-    // mert a nyilvános CORS-proxyk sűrű pollozásnál rate-limitelnek (429). A köridők
-    // úgyis ~percenként frissülnek, szóval ez bőven elég.
+    // Telemetria frissítése 1 mp-es alapütemmel.
+    //  - SAJÁT proxy (Cloudflare Worker) esetén ÉLESBEN 1 mp-enként kérdezünk (nincs
+    //    rate-limit) — gyakorlatilag valós idő.
+    //  - Nyilvános proxykkal ~8 mp-enként (különben 429 rate-limit).
+    //  - SZIMULÁCIÓBAN 1 mp-es ütemben rajzol, ha változott a szimulált idő.
+    //  A telemetryBusy őr megakadályozza, hogy a lekérdezések torlódjanak.
     let telemetryTick = 0;
+    let telemetryBusy = false;
     updateTelemetryUI();
-    setInterval(() => {
+    setInterval(async () => {
         telemetryTick++;
         if (isSimulating) {
             if (simTimeMinutes !== lastSimTelemetryMin) {
                 lastSimTelemetryMin = simTimeMinutes;
                 updateTelemetryUI();
             }
-        } else if (telemetryTick % 4 === 0) { // ~8 másodpercenként
-            updateTelemetryUI();
+            return;
         }
-    }, 2000);
+        const hasSelfProxy = !!localStorage.getItem('telemetry_proxy');
+        const everyN = hasSelfProxy ? 1 : 8; // saját proxyval 1 mp, egyébként 8 mp
+        if (telemetryTick % everyN !== 0) return;
+        if (telemetryBusy) return; // előző lekérdezés még fut → kihagyjuk
+        telemetryBusy = true;
+        try { await updateTelemetryUI(); } finally { telemetryBusy = false; }
+    }, 1000);
 
     // Óra frissítése másodpercenként
     setInterval(() => {
