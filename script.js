@@ -587,53 +587,37 @@ async function fetchWithTimeout(url, options = {}, timeout = 6000) {
     }
 }
 
-// --- PROXY ALAPÚ ADATLEKÉRDEZÉS AUTOMATIKUS TARTALÉK MEGOLDÁSSAL ---
-// A Chronomoto nem küld CORS-fejlécet, ezért a böngészőből csak CORS-proxyn át
-// érhető el. A proxyk sorrendben (elsődleges → tartalék); az elsőt, ami valós
-// adatot ad, használjuk. corsproxy.io a leggyorsabb és böngészőből megbízható
-// (a böngésző automatikusan küldi az Origin fejlécet, amit elvár).
-const TELEMETRY_PROXIES = [
-    { name: 'corsproxy.io', build: u => 'https://corsproxy.io/?url=' + encodeURIComponent(u), timeout: 8000 },
-    { name: 'AllOrigins',   build: u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u), timeout: 11000 },
-    { name: 'CodeTabs',     build: u => 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(u), timeout: 9000 },
+// --- ADATLEKÉRDEZÉS A SAJÁT CLOUDFLARE WORKER PROXYKON KERESZTÜL ---
+// A Chronomoto nem küld CORS-fejlécet, ezért böngészőből csak proxyn át érhető el.
+// KIZÁRÓLAG saját Cloudflare Workereket használunk (nincs nyilvános proxy): nincs
+// rate-limit, gyors és megbízható. Elsődleges → tartalék sorrendben próbálkozunk:
+// ha az első kifut a keretből (vagy leáll), automatikusan a másodikra vált.
+// A localStorage 'telemetry_proxy' egy egyedi címet tehet a lista ELEJÉRE.
+const TELEMETRY_WORKERS = [
+    'https://msb-proxy.szaszegri.workers.dev/?url=',    // elsődleges
+    'https://msb-proxy-2.szaszegri.workers.dev/?url=',  // tartalék (backup)
 ];
 
+function telemetryProxyList() {
+    const override = (typeof localStorage !== 'undefined' && localStorage.getItem('telemetry_proxy')) || '';
+    return override ? [override, ...TELEMETRY_WORKERS] : TELEMETRY_WORKERS.slice();
+}
+
 async function fetchWithProxy(targetUrl) {
-    // Opcionális SAJÁT proxy (pl. ingyenes Cloudflare Worker). Ha be van állítva
-    // (localStorage 'telemetry_proxy', pl. 'https://valami.workers.dev/?url='),
-    // ez lesz az ELSŐDLEGES — nincs rate-limit, gyors és megbízható a verseny alatt.
-    const selfProxy = (typeof localStorage !== 'undefined' && localStorage.getItem('telemetry_proxy')) || '';
-    const proxyList = selfProxy
-        ? [{ name: 'saját proxy', build: u => selfProxy + encodeURIComponent(u), timeout: 8000 }, ...TELEMETRY_PROXIES]
-        : TELEMETRY_PROXIES;
-
-    // 1) Közvetlen próba — ha a forrás valaha CORS-fejlécet adna, ez a leggyorsabb.
-    //    (CORS-hiba esetén szinte azonnal elhasal, nem lassít.)
-    try {
-        const response = await fetchWithTimeout(targetUrl, {}, 4000);
-        if (response.ok) {
-            const t = await response.text();
-            if (t && t.length > 30) { console.log('Telemetria: közvetlen lekérdezés sikeres.'); return t; }
-        }
-    } catch (directError) {
-        // várható CORS-hiba — megyünk a proxykra
-    }
-
-    // 2) Proxyk sorban
     let lastErr = null;
-    for (const p of proxyList) {
+    for (const base of telemetryProxyList()) {
         try {
-            const response = await fetchWithTimeout(p.build(targetUrl), {}, p.timeout);
+            const response = await fetchWithTimeout(base + encodeURIComponent(targetUrl), {}, 9000);
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const t = await response.text();
-            if (t && t.length > 30) { console.log('Telemetria proxy sikeres:', p.name); return t; }
-            throw new Error('üres/rövid válasz');
+            if (!t || t.length <= 30) throw new Error('üres/rövid válasz');
+            return t;
         } catch (e) {
             lastErr = e;
-            console.warn('Telemetria proxy sikertelen (' + p.name + '):', e.message);
+            console.warn('Worker sikertelen (' + base + '):', e.message);
         }
     }
-    throw new Error('Minden lekérdezési mód sikertelen. Utolsó hiba: ' + (lastErr ? lastErr.message : 'ismeretlen'));
+    throw new Error('Minden Worker sikertelen. Utolsó hiba: ' + (lastErr ? lastErr.message : 'ismeretlen'));
 }
 
 // --- CHRONOMOTO LIVE TELEMETRIA LEKÉRDEZÉS ÉS MEGJELENÍTÉS ---
@@ -2286,8 +2270,8 @@ function refreshProxyUI() {
     const v = localStorage.getItem('telemetry_proxy') || '';
     if (inp && document.activeElement !== inp) inp.value = v;
     if (statusEl) {
-        statusEl.textContent = v ? '✓ Saját proxy aktív (elsődleges lekérdezés)' : 'Nincs beállítva — nyilvános proxykat használ.';
-        statusEl.style.color = v ? 'var(--color-green)' : 'var(--text-muted)';
+        statusEl.textContent = v ? '✓ Egyedi proxy aktív (elsődleges) + beépített tartalék' : '✓ Beépített Workerek aktívak (elsődleges + tartalék)';
+        statusEl.style.color = 'var(--color-green)';
     }
 }
 (function initProxyField() {
@@ -2805,17 +2789,13 @@ function init() {
         teamNameInputEl.value = teamMap[trackedTeamNo];
     }
 
-    // Telemetria frissítése 1 mp-es alapütemmel.
-    //  - SAJÁT proxy (Cloudflare Worker) esetén ÉLESBEN 1 mp-enként kérdezünk (nincs
-    //    rate-limit) — gyakorlatilag valós idő.
-    //  - Nyilvános proxykkal ~8 mp-enként (különben 429 rate-limit).
-    //  - SZIMULÁCIÓBAN 1 mp-es ütemben rajzol, ha változott a szimulált idő.
-    //  A telemetryBusy őr megakadályozza, hogy a lekérdezések torlódjanak.
-    let telemetryTick = 0;
+    // Telemetria frissítése 1,75 mp-enként (saját Cloudflare Worker — nincs rate-limit,
+    // de a Cloudflare napi 100 000 kérés keret miatt ez a biztonságos ütem több eszközzel
+    // is). A telemetryBusy őr megakadályozza, hogy a lekérdezések torlódjanak.
+    // SZIMULÁCIÓBAN csak akkor rajzol újra, ha változott a szimulált idő.
     let telemetryBusy = false;
     updateTelemetryUI();
     setInterval(async () => {
-        telemetryTick++;
         if (isSimulating) {
             if (simTimeMinutes !== lastSimTelemetryMin) {
                 lastSimTelemetryMin = simTimeMinutes;
@@ -2823,13 +2803,10 @@ function init() {
             }
             return;
         }
-        const hasSelfProxy = !!localStorage.getItem('telemetry_proxy');
-        const everyN = hasSelfProxy ? 1 : 8; // saját proxyval 1 mp, egyébként 8 mp
-        if (telemetryTick % everyN !== 0) return;
         if (telemetryBusy) return; // előző lekérdezés még fut → kihagyjuk
         telemetryBusy = true;
         try { await updateTelemetryUI(); } finally { telemetryBusy = false; }
-    }, 1000);
+    }, 1750);
 
     // Óra frissítése másodpercenként
     setInterval(() => {
