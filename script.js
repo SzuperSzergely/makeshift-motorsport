@@ -1731,10 +1731,12 @@ function updateUI() {
             const remaining = targetEndMin - currentTimeMinutes; // <0, ha késésben (túlfutott)
             const percent = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
 
-            const etapNum = activeSeg.etap != null ? activeSeg.etap : 1;
-            const etapTotal = getTimeline().filter(s => s.driver === activeSeg.driver).length; // e pilóta összes köre
+            // A tervező sorfolytonos számozását követi: hányadik etap az EGÉSZ terven
+            // belül (minden cserénél nő), nem a pilóta hányadik köre.
+            const etapNum = activeSeg.stintIndex != null ? activeSeg.stintIndex + 1 : (activeSeg.etap || 1);
+            const etapTotal = SCHEDULE.length; // a terv összes etapja
             activeDriverStageEl.textContent = isManual
-                ? `Kézi csere • ${activeSeg.driver} ${etapNum}. köre`
+                ? `Kézi csere • Etap ${etapNum} / ${etapTotal}`
                 : `Etap ${etapNum} / ${etapTotal}`;
 
             progressBarFillEl.style.width = `${percent}%`;
@@ -1855,7 +1857,7 @@ function renderTable(currentTimeMinutes) {
             }
         }
 
-        const etapNum = seg.etap != null ? seg.etap : 1; // a pilóta hányadik köre
+        const etapNum = seg.stintIndex != null ? seg.stintIndex + 1 : (seg.etap || 1); // a tervező sorfolytonos etap-száma
         const manualTag = seg.manualStart
             ? ` <span class="driver-etap" style="color: var(--color-gold);" title="Kézi csere ezen a ponton">• kézi</span>`
             : '';
