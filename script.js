@@ -1854,10 +1854,13 @@ function renderTable(currentTimeMinutes) {
         let statusBadge = `<span class="status-badge upcoming"><i class="fa-regular fa-clock"></i> Következik</span>`;
 
         if (!isBeforeRace) {
-            if (currentTimeMinutes >= endMin) {
+            // A státusz a CSERÉKHEZ igazodik (nem az órához): amíg nem cserélsz,
+            // a jelenlegi etap marad "Pályán" — se élesben, se szimulációban nem lép tovább.
+            const ci = swapLog.length; // eddig rögzített cserék száma = a jelenlegi etap indexe
+            if (seg.stintIndex < ci) {
                 rowClass = 'completed-row';
                 statusBadge = `<span class="status-badge completed"><i class="fa-solid fa-check"></i> Befejezve</span>`;
-            } else if (currentTimeMinutes >= startMin && currentTimeMinutes < endMin) {
+            } else if (seg.stintIndex === ci) {
                 rowClass = 'active-row';
                 statusBadge = `<span class="status-badge palyan"><i class="fa-solid fa-motorcycle"></i> Pályán</span>`;
             }
