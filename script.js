@@ -692,7 +692,7 @@ async function fetchLiveTimingData() {
                     const laps = cells[7] ? cells[7].textContent.trim() : '';
                     const bestLap = cells[8] ? cells[8].textContent.trim() : '';
                     const lastLap = cells[10] ? cells[10].textContent.trim() : '';
-                    const diffPrev = cells[7] ? cells[7].textContent.trim().replace(/\u00a0/g, ' ').trim() : '';
+                    const diffPrev = cells[9] ? cells[9].textContent.trim().replace(/\u00a0/g, ' ').trim() : '';
                     
                     standings.push({ pos, num, name, laps, bestLap, lastLap, diffPrev });
                     newTeamMap[num] = name;
@@ -2942,7 +2942,7 @@ function init() {
             telemetryFailCount = 0;
             telemetryCooldownUntil = 0;
         }
-    }, 2500);
+    }, 2000);
 
     // Óra frissítése másodpercenként
     setInterval(() => {
