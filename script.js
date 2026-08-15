@@ -411,9 +411,9 @@ function buildTimeline() {
     const replan = replanRemaining(curDriver, plannedDur[ci], futureQueue, driven, curStart);
 
     const projectedEndMin = Math.min(RACE_END_MIN, curStart + replan.curDur);
-    // ÉLESBEN a jelenlegi etap a mostani időpontig nyúlik, ha túlfutott (nem vált magától).
-    // SZIMULÁCIÓBAN a terv szerint (idő alapján) lépked.
-    const curEndMin = isSimulating ? projectedEndMin : Math.max(projectedEndMin, nowMin);
+    // A jelenlegi etap a mostani időpontig nyúlik, ha túlfutott — se élesben, se
+    // szimulációban NEM lép magától tovább: a pilótacserét MINDIG a gomb rögzíti.
+    const curEndMin = Math.max(projectedEndMin, nowMin);
     segments.push({ stintIndex: ci, driver: curDriver, startMin: curStart, endMin: curEndMin, projectedEndMin, manualStart: isManualStart(ci), current: true });
 
     let cursor = projectedEndMin;
@@ -440,14 +440,11 @@ function buildTimeline() {
 }
 
 // Az aktív szakasz (aki most a pályán van).
-//  - ÉLESBEN: a jelenlegi etap a rajtjától aktív (nem lép magától tovább — a cserét
-//    a gomb rögzíti). SZIMULÁCIÓBAN: idő szerint, a terv szerint lépkedve.
+//  - A jelenlegi etap a rajtjától aktív, és NEM lép magától tovább — se élesben,
+//    se szimulációban. A pilótacserét mindig a gomb rögzíti (akár késve is).
 function getActiveSegment(nowMin) {
     if (nowMin >= RACE_END_MIN) return null;
     const tl = getTimeline();
-    if (isSimulating) {
-        return tl.find(seg => nowMin >= seg.startMin && nowMin < seg.endMin) || null;
-    }
     const cur = tl.find(seg => seg.current);
     if (cur && nowMin >= cur.startMin) return cur;
     return tl.find(seg => nowMin >= seg.startMin && nowMin < seg.endMin) || null;
