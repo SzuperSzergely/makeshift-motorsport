@@ -2831,6 +2831,7 @@ function syncInit() {
             }
             if (!v || !v.ts || v.ts <= lastVoiceTsSeen || !v.audio) return;
             lastVoiceTsSeen = v.ts;
+            if (v.from && v.from === VOICE_SELF_ID) return; // saját üzenet — ezen az eszközön ne szóljon vissza
             playIncomingVoice(v.audio);
         });
     } catch (e) {
@@ -2987,6 +2988,8 @@ if (btnQuickHuman) {
 // és minden csatlakozott eszközön automatikusan lejátszódik (~1-2 mp késés).
 let lastVoiceTsSeen = 0;
 let voiceListenerInit = false;
+// Egyedi eszköz/lap azonosító — a SAJÁT hangüzenetünket sosem játsszuk vissza ezen az eszközön.
+const VOICE_SELF_ID = 'dev-' + Math.random().toString(36).slice(2) + '-' + Date.now();
 let micStream = null;
 let voiceRecorder = null;
 let voiceChunks = [];
@@ -3101,7 +3104,7 @@ function voiceBroadcast(dataUrl) {
     if (typeof syncRef !== 'undefined' && syncRef) {
         const ts = Date.now();
         lastVoiceTsSeen = ts; // a saját hangunkat ne játsszuk vissza
-        syncRef.child('voice').set({ audio: dataUrl, ts }).catch(() => {});
+        syncRef.child('voice').set({ audio: dataUrl, ts, from: VOICE_SELF_ID }).catch(() => {});
     } else {
         showCustomAlert('HANGÜZENET', 'A szinkron nincs beállítva — a hang nem küldhető el a többi eszközre.', '--color-orange', 'fa-solid fa-triangle-exclamation');
     }
