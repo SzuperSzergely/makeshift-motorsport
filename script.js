@@ -1517,6 +1517,15 @@ function saveLapsToDatabase(newLaps, teamNo, teamName) {
         console.error('Hiba a localStorage betöltése közben:', e);
     }
     
+    // SESSION-VÁLTÁS felismerése: ha az új adat legnagyobb köre jóval kisebb a
+    // mentettnél (pl. időmérő 37. kör után verseny 1-13. kör), új futam kezdődött —
+    // a régi (időmérős) köröket eldobjuk, hogy ne ragadjanak be a statisztikába.
+    const newMax = newLaps.reduce((m, l) => Math.max(m, parseInt(l.lapNum) || 0), 0);
+    const oldMax = savedDb.reduce((m, l) => Math.max(m, parseInt(l.lapNum) || 0), 0);
+    if (newMax > 0 && newMax < oldMax - 2) {
+        savedDb = [];
+    }
+
     // Összefésüljük a köröket a kör száma (lapNum) alapján
     const lapMap = {};
     savedDb.forEach(lap => {
