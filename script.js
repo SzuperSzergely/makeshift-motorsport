@@ -641,9 +641,23 @@ async function fetchWithProxy(targetUrl) {
 
 // --- CHRONOMOTO LIVE TELEMETRIA LEKÉRDEZÉS ÉS MEGJELENÍTÉS ---
 
+// A Chronomoto élő végpontja kötelező paramétereket kér (ch = csatorna,
+// pm = esemény-azonosító), amik ESEMÉNYENKÉNT változnak. Az index.php-ből nyerjük
+// ki és cache-eljük; hiba esetén a fetchLiveTimingData nullázza (újra felderít).
+let chronoParams = null;
+async function getChronoParams() {
+    if (chronoParams) return chronoParams;
+    const idx = await fetchWithProxy('https://live.chronomoto.com/bssw/index.php?t=' + Date.now());
+    const ch = (idx.match(/&ch=([A-Za-z0-9_]+)/) || [])[1] || '24h';
+    const pm = (idx.match(/&pm=([A-Za-z0-9_]+)/) || [])[1] || '';
+    chronoParams = { ch, pm };
+    return chronoParams;
+}
+
 async function fetchLiveTimingData() {
     try {
-        const targetUrl = 'https://live.chronomoto.com/bssw/livedata.php?t=' + Date.now();
+        const params = await getChronoParams();
+        const targetUrl = `https://live.chronomoto.com/bssw/livedata.php?w=1&ch=${params.ch}&s=0&p=1&pn=Pit&pm=${params.pm}&h=1&m=0&l=0&c=&t=${Date.now()}`;
         telemetryPulseDotEl.classList.add('fetching');
         
         const htmlText = await fetchWithProxy(targetUrl);
@@ -659,15 +673,15 @@ async function fetchLiveTimingData() {
             const cells = row.querySelectorAll('td');
             // Ellenőrizzük, hogy ez egy valós csapat adatsor-e
             if (cells.length >= 5) {
-                const rawNum = cells[1].textContent.trim();
+                const rawNum = cells[2].textContent.trim();
                 // Ha a rajtszám oszlop nem szám, akkor ez nem adatsor (pl. fejléc)
                 if (rawNum && !isNaN(parseInt(rawNum))) {
-                    const pos = cells[0].textContent.trim().replace('.', '');
+                    const pos = cells[1].textContent.trim().replace('.', '');
                     const num = rawNum;
-                    const name = cells[2].textContent.trim().replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
-                    const laps = cells[3] ? cells[3].textContent.trim() : '';
-                    const bestLap = cells[4] ? cells[4].textContent.trim() : '';
-                    const lastLap = cells[8] ? cells[8].textContent.trim() : '';
+                    const name = cells[3].textContent.trim().replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
+                    const laps = cells[7] ? cells[7].textContent.trim() : '';
+                    const bestLap = cells[8] ? cells[8].textContent.trim() : '';
+                    const lastLap = cells[10] ? cells[10].textContent.trim() : '';
                     const diffPrev = cells[7] ? cells[7].textContent.trim().replace(/\u00a0/g, ' ').trim() : '';
                     
                     standings.push({ pos, num, name, laps, bestLap, lastLap, diffPrev });
@@ -744,6 +758,7 @@ async function fetchLiveTimingData() {
     } catch (error) {
         console.error('Sikertelen Chronomoto telemetria adatlekérés:', error);
         lastTelemetryError = error.message || error;
+        chronoParams = null; // hiba esetén újra felderítjük a ch/pm paramétereket (pl. új esemény)
         return null;
     } finally {
         // Leállítjuk a frissítés animációt kis késleltetés után
