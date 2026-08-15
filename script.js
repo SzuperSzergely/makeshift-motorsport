@@ -1404,8 +1404,8 @@ function reconstructLapsTimeline(rawLaps) {
 // Köridők lekérdezése lapdata.php-ről proxy segítségével
 async function fetchAndRenderRealTelemetry(runId, teamNumber) {
     try {
-        const runPart = runId ? `run=${runId}&` : '';
-        const targetUrl = `https://live.chronomoto.com/bssw/lapdata.php?${runPart}no=${teamNumber}&o=&t=${Date.now()}`;
+        // Az új Chronomoto végpont: lapdata.php?no=<rajtszám> (nincs run/ch/pm)
+        const targetUrl = `https://live.chronomoto.com/bssw/lapdata.php?no=${teamNumber}&t=${Date.now()}`;
         const htmlText = await fetchWithProxy(targetUrl);
         const parser = new DOMParser();
         const doc = parser.parseFromString(htmlText, 'text/html');
@@ -2988,8 +2988,17 @@ if (btnQuickHuman) {
 // és minden csatlakozott eszközön automatikusan lejátszódik (~1-2 mp késés).
 let lastVoiceTsSeen = 0;
 let voiceListenerInit = false;
-// Egyedi eszköz/lap azonosító — a SAJÁT hangüzenetünket sosem játsszuk vissza ezen az eszközön.
-const VOICE_SELF_ID = 'dev-' + Math.random().toString(36).slice(2) + '-' + Date.now();
+// Eszköz-szintű azonosító (localStorage-ban, a fülek közt KÖZÖS) — a saját eszközünkről
+// küldött hangot ugyanazon az eszközön (bármelyik fülön) sosem játsszuk vissza.
+const VOICE_SELF_ID = (() => {
+    let id = null;
+    try { id = localStorage.getItem('voice_device_id'); } catch (e) {}
+    if (!id) {
+        id = 'dev-' + Math.random().toString(36).slice(2) + '-' + Date.now();
+        try { localStorage.setItem('voice_device_id', id); } catch (e) {}
+    }
+    return id;
+})();
 let micStream = null;
 let voiceRecorder = null;
 let voiceChunks = [];
