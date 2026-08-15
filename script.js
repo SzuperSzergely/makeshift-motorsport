@@ -1121,13 +1121,13 @@ function renderDriverTelemetryCards(laps) {
                 if (sec < stats.best) {
                     stats.best = sec;
                 }
-                stats.totalSec += sec;
+                if (sec <= 80) stats.totalSec += sec; // KIÁLLÁST nem számoljuk az átlagba
             }
         });
 
         const lapCount = stats.laps.length;
         const bestTimeStr = stats.best !== Infinity ? secondsToLapTime(stats.best) : '--:--.---';
-        const validLapsCount = stats.laps.filter(l => l.sec !== undefined && l.sec !== null && !isNaN(l.sec) && l.sec !== Infinity).length;
+        const validLapsCount = stats.laps.filter(l => l.sec !== undefined && l.sec !== null && !isNaN(l.sec) && l.sec !== Infinity && l.sec <= 80).length;
         const avgTimeStr = validLapsCount > 0 ? secondsToLapTime(stats.totalSec / validLapsCount) : '--:--.---';
 
         let lapsListHTML = '';
@@ -1226,7 +1226,7 @@ function renderDriverTelemetryCards(laps) {
                 if (sec < driverStats[driver].best) {
                     driverStats[driver].best = sec;
                 }
-                driverStats[driver].totalSec += sec;
+                if (sec <= 80) driverStats[driver].totalSec += sec; // KIÁLLÁST nem számoljuk az átlagba
             }
         }
     });
@@ -1246,9 +1246,9 @@ function renderDriverTelemetryCards(laps) {
         const stats = driverStats[driver];
         const lapCount = stats.laps.length;
         const bestTimeStr = stats.best !== Infinity ? secondsToLapTime(stats.best) : '--:--.---';
-        const validLapsCount = stats.laps.filter(l => l.sec !== undefined && l.sec !== null && !isNaN(l.sec) && l.sec !== Infinity).length;
+        const validLapsCount = stats.laps.filter(l => l.sec !== undefined && l.sec !== null && !isNaN(l.sec) && l.sec !== Infinity && l.sec <= 80).length;
         const avgTimeStr = validLapsCount > 0 ? secondsToLapTime(stats.totalSec / validLapsCount) : '--:--.---';
-        
+
         let lapsListHTML = '';
         if (lapCount === 0) {
             lapsListHTML = '<div style="font-size:0.7rem; color:var(--text-muted); text-align:center; padding:15px; grid-column:1/-1;">Nincs még rögzített kör ebben a szakaszban.</div>';
