@@ -667,7 +667,9 @@ function invalidateChronoParams() {
 async function fetchLiveTimingData() {
     try {
         const params = await getChronoParams();
-        const targetUrl = `https://live.chronomoto.com/bssw/livedata.php?w=1&ch=${params.ch}&s=0&p=1&pn=Pit&pm=${params.pm}&h=1&m=0&l=0&c=&t=${Date.now()}`;
+        // w=1920 (széles nézet) — így minden oszlop megjön (Best Lap, Diff.prev, Last Lap);
+        // a keskeny w=1 verseny-nézetből hiányzik a Best Lap.
+        const targetUrl = `https://live.chronomoto.com/bssw/livedata.php?w=1920&ch=${params.ch}&s=0&p=1&pn=Pit&pm=${params.pm}&h=1&m=0&l=0&c=&t=${Date.now()}`;
         telemetryPulseDotEl.classList.add('fetching');
         
         const htmlText = await fetchWithProxy(targetUrl);
@@ -682,7 +684,7 @@ async function fetchLiveTimingData() {
         // Fejléc-alapú oszloptérkép — a Chronomoto nézetenként (időmérő/verseny) MÁS
         // oszlopszerkezetű (pl. verseny nézetben van Total Tm oszlop is), ezért a
         // helyes oszlop-indexeket a fejléc-sorból olvassuk ki.
-        const _hRow = [...rows].find(r => /Best Lap/i.test(r.textContent));
+        const _hRow = [...rows].find(r => /Driver/i.test(r.textContent) && /Laps/i.test(r.textContent) && /Last Lap/i.test(r.textContent));
         const _hdr = _hRow ? [..._hRow.children].map(c => c.textContent.trim().toLowerCase().replace(/\.+$/, '')) : [];
         const _iPos = _hdr.indexOf('pos');
         const _iNo = _hdr.indexOf('no');
