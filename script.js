@@ -2244,6 +2244,7 @@ function saveTrackedTeam() {
         localStorage.setItem('tracked_team_query', trackedTeamQuery || '');
         if (trackedTeamNo) localStorage.setItem('tracked_team_no', String(trackedTeamNo));
     } catch (e) {}
+    if (typeof syncPushTeam === 'function') syncPushTeam(); // minden eszközre szinkronizál
 }
 
 // Kétoldali automatikus kitöltés (Rajtszám <-> Csapatnév)
@@ -2717,6 +2718,10 @@ function syncPushRaceStart() {
     // A manuálisan rögzített valós rajtot minden eszközzel megosztjuk
     if (syncRef && !syncApplying) syncRef.child('raceStartMin').set(actualRaceStartMin == null ? null : actualRaceStartMin).catch(() => {});
 }
+function syncPushTeam() {
+    // A követett csapatot (rajtszám/név) minden eszközre szinkronizáljuk
+    if (syncRef && !syncApplying) syncRef.child('team').set({ query: trackedTeamQuery || '', no: trackedTeamNo || null }).catch(() => {});
+}
 function syncPushAll() {
     if (!syncRef) return;
     syncRef.child('planJson').set(JSON.stringify(plan)).catch(() => {});
@@ -2724,6 +2729,7 @@ function syncPushAll() {
     const proxy = localStorage.getItem('telemetry_proxy');
     if (proxy) syncRef.child('proxyUrl').set(proxy).catch(() => {});
     if (actualRaceStartMin != null) syncRef.child('raceStartMin').set(actualRaceStartMin).catch(() => {});
+    syncRef.child('team').set({ query: trackedTeamQuery || '', no: trackedTeamNo || null }).catch(() => {});
 }
 
 function syncInit() {
@@ -2755,6 +2761,7 @@ function syncInit() {
             syncApplying = true;
             let changed = false;
             let proxyChanged = false;
+            let teamChanged = false;
             try {
                 if (data.planJson) {
                     const p = JSON.parse(data.planJson);
@@ -2791,6 +2798,28 @@ function syncInit() {
                         changed = true;
                     }
                 }
+                // Követett csapat szinkronizálása az eszközök között
+                if (data.team && typeof data.team === 'object') {
+                    const q = data.team.query || '';
+                    const no = data.team.no || null;
+                    if (q !== trackedTeamQuery || no !== trackedTeamNo) {
+                        trackedTeamQuery = q;
+                        if (no) trackedTeamNo = no;
+                        else if (!isNaN(parseInt(q))) trackedTeamNo = parseInt(q);
+                        try {
+                            localStorage.setItem('tracked_team_query', trackedTeamQuery);
+                            if (trackedTeamNo) localStorage.setItem('tracked_team_no', String(trackedTeamNo));
+                        } catch (e) {}
+                        // Input mezők frissítése
+                        if (typeof teamNumberInputEl !== 'undefined' && teamNumberInputEl) {
+                            teamNumberInputEl.value = /^\d+$/.test(trackedTeamQuery) ? trackedTeamQuery : '';
+                        }
+                        if (typeof teamNameInputEl !== 'undefined' && teamNameInputEl) {
+                            teamNameInputEl.value = (teamMap[trackedTeamNo]) ? teamMap[trackedTeamNo] : (/^\d+$/.test(trackedTeamQuery) ? '' : trackedTeamQuery);
+                        }
+                        teamChanged = true;
+                    }
+                }
             } catch (e) { console.error('Szinkron feldolgozási hiba:', e); }
             syncApplying = false;
 
@@ -2801,7 +2830,7 @@ function syncInit() {
                 updateClockDisplay();
                 updateTelemetryUI();
                 if (activeTab === 'planner' && typeof openPlanner === 'function') openPlanner();
-            } else if (proxyChanged) {
+            } else if (proxyChanged || teamChanged) {
                 updateTelemetryUI();
             }
         });
