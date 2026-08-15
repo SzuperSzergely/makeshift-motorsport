@@ -678,21 +678,39 @@ async function fetchLiveTimingData() {
         const rows = doc.querySelectorAll('table tr');
         const standings = [];
         const newTeamMap = {};
+
+        // Fejléc-alapú oszloptérkép — a Chronomoto nézetenként (időmérő/verseny) MÁS
+        // oszlopszerkezetű (pl. verseny nézetben van Total Tm oszlop is), ezért a
+        // helyes oszlop-indexeket a fejléc-sorból olvassuk ki.
+        const _hRow = [...rows].find(r => /Best Lap/i.test(r.textContent));
+        const _hdr = _hRow ? [..._hRow.children].map(c => c.textContent.trim().toLowerCase().replace(/\.+$/, '')) : [];
+        const _iPos = _hdr.indexOf('pos');
+        const _iNo = _hdr.indexOf('no');
+        const _iName = _hdr.findIndex(h => /driver|name|csapat/.test(h));
+        const _iLaps = _hdr.indexOf('laps');
+        const _iBest = _hdr.indexOf('best lap');
+        const _iLast = _hdr.indexOf('last lap');
+        const _iDiff = _hdr.findIndex(h => /diff\.?prev/.test(h));
         
         rows.forEach(row => {
             const cells = row.querySelectorAll('td');
             // Ellenőrizzük, hogy ez egy valós csapat adatsor-e
             if (cells.length >= 5) {
-                const rawNum = cells[2].textContent.trim();
+                // A rajtszám-cella onclick-jében "no=X" és tisztán szám → ebből az oszlop-eltolás
+                // (az adatsorok elején van egy státusz-cella, a fejléc-sorban nincs).
+                const _noIdx = [...cells].findIndex(c => /no=\d+/.test(c.getAttribute('onclick') || '') && /^\d+$/.test(c.textContent.trim()));
+                const _off = (_noIdx >= 0 && _iNo >= 0) ? (_noIdx - _iNo) : 1;
+                const _g = hi => { const ci = hi + _off; return (hi >= 0 && ci >= 0 && ci < cells.length) ? cells[ci].textContent.replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() : ''; };
+                const rawNum = (_iNo >= 0 && _noIdx >= 0) ? _g(_iNo) : (cells[2] ? cells[2].textContent.trim() : '');
                 // Ha a rajtszám oszlop nem szám, akkor ez nem adatsor (pl. fejléc)
                 if (rawNum && !isNaN(parseInt(rawNum))) {
-                    const pos = cells[1].textContent.trim().replace('.', '');
+                    const pos = (_g(_iPos) || '').replace('.', '');
                     const num = rawNum;
-                    const name = cells[3].textContent.trim().replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ');
-                    const laps = cells[7] ? cells[7].textContent.trim() : '';
-                    const bestLap = cells[8] ? cells[8].textContent.trim() : '';
-                    const lastLap = cells[10] ? cells[10].textContent.trim() : '';
-                    const diffPrev = cells[9] ? cells[9].textContent.trim().replace(/\u00a0/g, ' ').trim() : '';
+                    const name = _g(_iName);
+                    const laps = _g(_iLaps);
+                    const bestLap = _g(_iBest);
+                    const lastLap = _g(_iLast);
+                    const diffPrev = _g(_iDiff);
                     
                     standings.push({ pos, num, name, laps, bestLap, lastLap, diffPrev });
                     newTeamMap[num] = name;
