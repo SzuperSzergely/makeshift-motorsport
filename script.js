@@ -647,11 +647,21 @@ async function fetchWithProxy(targetUrl) {
 let chronoParams = null;
 async function getChronoParams() {
     if (chronoParams) return chronoParams;
+    // localStorage cache — betöltéskor ne kelljen újra az index.php-t lekérni
+    try {
+        const c = JSON.parse(localStorage.getItem('chrono_params') || 'null');
+        if (c && c.pm) { chronoParams = c; return chronoParams; }
+    } catch (e) {}
     const idx = await fetchWithProxy('https://live.chronomoto.com/bssw/index.php?t=' + Date.now());
     const ch = (idx.match(/&ch=([A-Za-z0-9_]+)/) || [])[1] || '24h';
     const pm = (idx.match(/&pm=([A-Za-z0-9_]+)/) || [])[1] || '';
     chronoParams = { ch, pm };
+    try { localStorage.setItem('chrono_params', JSON.stringify(chronoParams)); } catch (e) {}
     return chronoParams;
+}
+function invalidateChronoParams() {
+    chronoParams = null;
+    try { localStorage.removeItem('chrono_params'); } catch (e) {}
 }
 
 async function fetchLiveTimingData() {
@@ -758,7 +768,9 @@ async function fetchLiveTimingData() {
     } catch (error) {
         console.error('Sikertelen Chronomoto telemetria adatlekérés:', error);
         lastTelemetryError = error.message || error;
-        chronoParams = null; // hiba esetén újra felderítjük a ch/pm paramétereket (pl. új esemény)
+        // Csak TARTALMI hibánál (üres/rövid válasz = pl. "Channel not specified") derítsünk
+        // fel újra a ch/pm paramétereket. Időtúllépésnél NEM (az csak lassú szerver).
+        if (/üres|rövid|HTTP 4|HTTP 5/i.test(String(lastTelemetryError))) invalidateChronoParams();
         return null;
     } finally {
         // Leállítjuk a frissítés animációt kis késleltetés után
@@ -2902,11 +2914,14 @@ function init() {
         teamNameInputEl.value = teamMap[trackedTeamNo];
     }
 
-    // Telemetria frissítése 1,75 mp-enként (saját Cloudflare Worker — nincs rate-limit,
-    // de a Cloudflare napi 100 000 kérés keret miatt ez a biztonságos ütem több eszközzel
-    // is). A telemetryBusy őr megakadályozza, hogy a lekérdezések torlódjanak.
+    // Telemetria frissítése. Alap ütem 2,5 mp. DE ha a forrás (Chronomoto) lassú vagy
+    // hibázik, fokozatosan HÁTRÁLUNK (backoff, 3→25 mp), hogy ne torlódjanak a kérések
+    // és ne dugítsuk el a hálózatot/szervert (a hivatalos oldal is tudjon tölteni).
+    // A telemetryBusy őr megakadályozza az átfedést.
     // SZIMULÁCIÓBAN csak akkor rajzol újra, ha változott a szimulált idő.
     let telemetryBusy = false;
+    let telemetryFailCount = 0;
+    let telemetryCooldownUntil = 0;
     updateTelemetryUI();
     setInterval(async () => {
         if (isSimulating) {
@@ -2917,9 +2932,17 @@ function init() {
             return;
         }
         if (telemetryBusy) return; // előző lekérdezés még fut → kihagyjuk
+        if (Date.now() < telemetryCooldownUntil) return; // backoff — kíméljük a szervert
         telemetryBusy = true;
         try { await updateTelemetryUI(); } finally { telemetryBusy = false; }
-    }, 1750);
+        if (lastTelemetryError) {
+            telemetryFailCount = Math.min(telemetryFailCount + 1, 10);
+            telemetryCooldownUntil = Date.now() + Math.min(3000 * telemetryFailCount, 25000);
+        } else {
+            telemetryFailCount = 0;
+            telemetryCooldownUntil = 0;
+        }
+    }, 2500);
 
     // Óra frissítése másodpercenként
     setInterval(() => {
