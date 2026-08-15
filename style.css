@@ -165,6 +165,61 @@ body {
     filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
 }
 
+/* --- VERSENY INDÍTÁSA SÁV (manuális rajt) --- */
+.race-start-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--overlay-subtle);
+    border: 1px solid var(--color-purple);
+    border-radius: var(--border-radius-lg);
+    padding: 14px 20px;
+    box-shadow: 0 0 20px var(--color-purple-glow);
+    animation: raceStartPulse 2s ease-in-out infinite;
+}
+.race-start-bar.hidden { display: none; }
+.race-start-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 0.95rem;
+}
+.race-start-info i {
+    color: var(--color-purple);
+    font-size: 1.3rem;
+}
+.race-start-btn {
+    background: var(--color-purple);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--border-radius-md);
+    padding: 12px 26px;
+    font-family: var(--font-clock);
+    font-weight: 800;
+    font-size: 0.95rem;
+    letter-spacing: 1px;
+    cursor: pointer;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: var(--transition-fast);
+}
+.race-start-btn:hover {
+    filter: brightness(1.12);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px var(--color-purple-glow);
+}
+@keyframes raceStartPulse {
+    0%, 100% { box-shadow: 0 0 12px var(--color-purple-glow); }
+    50% { box-shadow: 0 0 26px var(--color-purple-glow); }
+}
+
 .logo-wrapper {
     display: flex;
     align-items: baseline;

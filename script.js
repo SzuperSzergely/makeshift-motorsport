@@ -303,6 +303,27 @@ function saveSwapLog() {
     if (typeof syncPushSwaps === 'function') syncPushSwaps(); // felhő-szinkron
 }
 
+// --- VALÓS (MANUÁLIS) VERSENY-RAJT ---
+// A verseny csúszhat: a "Verseny indítása" gombbal rögzítjük a TÉNYLEGES rajtot.
+// Amíg nincs indítva (null), a tervezett RACE_START_MIN a horgony; indítás után a
+// rögzített perc, és a beosztás ehhez igazodik (replanRemaining a versenyvégig oszt).
+const RACE_START_KEY = 'actual_race_start_v1';
+let actualRaceStartMin = loadActualRaceStart();
+function loadActualRaceStart() {
+    const v = parseInt(localStorage.getItem(RACE_START_KEY), 10);
+    return isNaN(v) ? null : v;
+}
+function saveActualRaceStart() {
+    // Szimulációban NEM perzisztál (mint a cserék) — csak memóriában él.
+    if (isSimulating) return;
+    if (actualRaceStartMin == null) localStorage.removeItem(RACE_START_KEY);
+    else localStorage.setItem(RACE_START_KEY, String(actualRaceStartMin));
+    if (typeof syncPushRaceStart === 'function') syncPushRaceStart();
+}
+function effectiveRaceStart() {
+    return (actualRaceStartMin != null) ? actualRaceStartMin : RACE_START_MIN;
+}
+
 // Idővonal gyorsítótár (a swapLog változásakor érvénytelenítjük)
 let cachedTimeline = null;
 function invalidateTimeline() { cachedTimeline = null; }
@@ -369,7 +390,7 @@ function buildTimeline() {
     const swaps = swapLog.slice();                           // [{time, driver?}] — lezárt határok
     const ci = Math.min(swaps.length, N);                   // jelenlegi (held) etap-index
 
-    const nowMin = Math.min(RACE_END_MIN, Math.max(RACE_START_MIN, getCurrentTimeMinutes()));
+    const nowMin = Math.min(RACE_END_MIN, Math.max(effectiveRaceStart(), getCurrentTimeMinutes()));
     const driven = {};
     DRIVERS.forEach(d => { driven[d] = 0; });
 
@@ -383,7 +404,7 @@ function buildTimeline() {
     const segments = [];
 
     // 1. Lezárt (múltbeli) etapok 0..ci-1 — a TÉNYLEGES határidőkkel
-    let prevEnd = RACE_START_MIN;
+    let prevEnd = effectiveRaceStart();
     for (let k = 0; k < ci; k++) {
         const start = prevEnd;
         const end = swaps[k].time;
@@ -464,7 +485,7 @@ function getNextSegment(nowMin) {
 // Szimulációban az addig automatikusan lezárult etapok határait is rögzíti (utolérés).
 function performSwap(overrideDriver) {
     const now = Math.round(getCurrentTimeMinutes());
-    if (now < RACE_START_MIN || now >= RACE_END_MIN) {
+    if (now < effectiveRaceStart() || now >= RACE_END_MIN) {
         showCustomAlert('CSERE', `Cserét csak a verseny ideje alatt (${plan.raceStart}–${plan.raceEnd}) lehet rögzíteni.`, '--color-gold', 'fa-solid fa-triangle-exclamation');
         return false;
     }
@@ -484,7 +505,7 @@ function performSwap(overrideDriver) {
     // Az addig (idő szerint) automatikusan lezárult etapok (ci..d-1) határainak rögzítése,
     // majd a jelenlegi (d.) etap lezárása MOST. Így a sorrend megmarad, csak az idők tolódnak.
     const newSwaps = swapLog.slice(0, ci);
-    let prevT = ci > 0 ? swapLog[ci - 1].time : RACE_START_MIN;
+    let prevT = ci > 0 ? swapLog[ci - 1].time : effectiveRaceStart();
     for (let k = ci; k < d; k++) {
         const seg = tl.find(s => s.stintIndex === k);
         let t = seg ? Math.round(seg.projectedEndMin != null ? seg.projectedEndMin : seg.endMin) : now;
@@ -1948,14 +1969,16 @@ simToggleEl.addEventListener('change', (e) => {
     } else {
         sliderGroupEl.classList.add('disabled');
         timeSimSliderEl.disabled = true;
-        // A szimuláció alatti (nem mentett) cseréket eldobjuk: visszaáll a valós állapot
+        // A szimuláció alatti (nem mentett) cseréket ÉS a valós rajtot is eldobjuk
         swapLog = loadSwapLog();
+        actualRaceStartMin = loadActualRaceStart();
         invalidateTimeline();
         refreshSwapButtons();
     }
 
     updateUI();
     updateClockDisplay();
+    if (typeof refreshRaceStartBar === 'function') refreshRaceStartBar();
     lastSimTelemetryMin = simTimeMinutes;
     updateTelemetryUI();
 });
@@ -1967,6 +1990,7 @@ timeSimSliderEl.addEventListener('input', (e) => {
 
     updateUI();
     updateClockDisplay();
+    if (typeof refreshRaceStartBar === 'function') refreshRaceStartBar();
 });
 
 // A csúszka elengedésekor frissítjük a telemetriát is (mock körök, állás-kártya)
@@ -2028,6 +2052,33 @@ if (swapYesBtn) {
 if (swapNoBtn) {
     swapNoBtn.addEventListener('click', () => {
         swapModal.classList.add('hidden');
+    });
+}
+
+// --- VERSENY INDÍTÁSA (manuális rajt — csúszás esetére) ---
+const startRaceBtnEl = document.getElementById('startRaceBtn');
+const raceStartBarEl = document.getElementById('raceStartBar');
+
+// A sáv 5 perccel a TERVEZETT rajt előtt jelenik meg, és a manuális indítás után eltűnik.
+function refreshRaceStartBar() {
+    if (!raceStartBarEl) return;
+    const now = getCurrentTimeMinutes();
+    const show = (actualRaceStartMin == null) && (now >= RACE_START_MIN - 5) && (now < RACE_END_MIN);
+    raceStartBarEl.classList.toggle('hidden', !show);
+}
+
+if (startRaceBtnEl) {
+    startRaceBtnEl.addEventListener('click', () => {
+        actualRaceStartMin = Math.round(getCurrentTimeMinutes());
+        saveActualRaceStart();
+        invalidateTimeline();
+        refreshRaceStartBar();
+        refreshSwapButtons();
+        updateUI();
+        updateClockDisplay();
+        lastSimTelemetryMin = simTimeMinutes;
+        updateTelemetryUI();
+        showCustomAlert('VERSENY INDÍTVA', `A rajt rögzítve: ${fmtClock(actualRaceStartMin, true)}. A beosztás ehhez igazodik.`, '--color-green', 'fa-solid fa-flag-checkered');
     });
 }
 
@@ -2644,12 +2695,17 @@ function syncPushProxy() {
     // A saját telemetria-proxy címét is megosztjuk minden eszközzel
     if (syncRef && !syncApplying) syncRef.child('proxyUrl').set(localStorage.getItem('telemetry_proxy') || '').catch(() => {});
 }
+function syncPushRaceStart() {
+    // A manuálisan rögzített valós rajtot minden eszközzel megosztjuk
+    if (syncRef && !syncApplying) syncRef.child('raceStartMin').set(actualRaceStartMin == null ? null : actualRaceStartMin).catch(() => {});
+}
 function syncPushAll() {
     if (!syncRef) return;
     syncRef.child('planJson').set(JSON.stringify(plan)).catch(() => {});
     syncRef.child('swapJson').set(JSON.stringify(swapLog)).catch(() => {});
     const proxy = localStorage.getItem('telemetry_proxy');
     if (proxy) syncRef.child('proxyUrl').set(proxy).catch(() => {});
+    if (actualRaceStartMin != null) syncRef.child('raceStartMin').set(actualRaceStartMin).catch(() => {});
 }
 
 function syncInit() {
@@ -2704,11 +2760,25 @@ function syncInit() {
                         proxyChanged = true;
                     }
                 }
+                // Valós (manuális) verseny-rajt szinkronizálása az eszközök között
+                if (data.raceStartMin !== undefined) {
+                    const incoming = (data.raceStartMin === null) ? null : data.raceStartMin;
+                    if (incoming !== actualRaceStartMin) {
+                        actualRaceStartMin = incoming;
+                        if (!isSimulating) {
+                            if (incoming == null) localStorage.removeItem(RACE_START_KEY);
+                            else localStorage.setItem(RACE_START_KEY, String(incoming));
+                        }
+                        invalidateTimeline();
+                        changed = true;
+                    }
+                }
             } catch (e) { console.error('Szinkron feldolgozási hiba:', e); }
             syncApplying = false;
 
             if (changed) {
                 refreshSwapButtons();
+                if (typeof refreshRaceStartBar === 'function') refreshRaceStartBar();
                 updateUI();
                 updateClockDisplay();
                 updateTelemetryUI();
@@ -2810,6 +2880,7 @@ function init() {
         if (!isSimulating) {
             updateUI();
         }
+        if (typeof refreshRaceStartBar === 'function') refreshRaceStartBar();
     }, 1000);
 }
 

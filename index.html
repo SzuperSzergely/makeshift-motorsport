@@ -11,7 +11,7 @@
     <!-- FontAwesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Style -->
-    <link rel="stylesheet" href="style.css?v=20260838">
+    <link rel="stylesheet" href="style.css?v=20260839">
 </head>
 <body>
     <div class="decor-light decor-light-1"></div>
@@ -44,6 +44,15 @@
                 </div>
             </div>
         </header>
+
+        <!-- RACE START BAR (manuális rajt — csúszás esetére) -->
+        <div id="raceStartBar" class="race-start-bar hidden">
+            <div class="race-start-info">
+                <i class="fa-solid fa-flag-checkered"></i>
+                <span>A verseny hamarosan indul — nyomd meg a tényleges rajt pillanatában!</span>
+            </div>
+            <button id="startRaceBtn" class="race-start-btn"><i class="fa-solid fa-flag-checkered"></i> VERSENY INDÍTÁSA</button>
+        </div>
 
         <!-- WARNING BANNERS (floating overlay — do not push page content) -->
         <div class="warning-stack" id="warningStack">
@@ -631,6 +640,6 @@
         <!-- Firebase (felhő-szinkron; ha nincs config, helyi módban fut) -->
         <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
         <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
-        <script src="script.js?v=20260838"></script>
+        <script src="script.js?v=20260839"></script>
     </body>
 </html>
