@@ -1535,6 +1535,14 @@ function saveLapsToDatabase(newLaps, teamNo, teamName) {
     });
     
     newLaps.forEach(lap => {
+        const existing = lapMap[lap.lapNum];
+        // Ha ezt a kört MÁR láttuk, MEGŐRIZZÜK az akkor rögzített időbélyeget és
+        // pilóta-hozzárendelést — így az időpontok NEM csúsznak el frissítéskor.
+        if (existing && existing.timeOfDay) {
+            lap.timeOfDay = existing.timeOfDay;
+            lap.absMin = existing.absMin;
+            if (existing.driver) lap.driver = existing.driver;
+        }
         if (!lap.driver) {
             lap.driver = getDriverForAbsMin(lapAbsMin(lap)) || 'Egyéb';
         }
