@@ -626,7 +626,7 @@ async function fetchWithProxy(targetUrl) {
     let lastErr = null;
     for (const base of telemetryProxyList()) {
         try {
-            const response = await fetchWithTimeout(base + encodeURIComponent(targetUrl), {}, 9000);
+            const response = await fetchWithTimeout(base + encodeURIComponent(targetUrl), {}, 60000);
             if (!response.ok) throw new Error('HTTP ' + response.status);
             const t = await response.text();
             if (!t || t.length <= 30) throw new Error('üres/rövid válasz');
